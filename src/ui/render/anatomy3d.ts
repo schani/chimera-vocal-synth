@@ -630,6 +630,11 @@ interface Echo {
 }
 const ECHO_AGES = [0.09, 0.06, 0.03];
 
+/** a narrow duet panel: how far the head moves back from the side it faces (of the width), and
+ *  the half-width (cm) fitted across, against 11 for the head alone */
+const NARROW_SHIFT = 0.13;
+const NARROW_ACROSS = 13.5;
+
 export class Anatomy3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(24, 1, 5, 2000);
@@ -692,7 +697,10 @@ export class Anatomy3D {
     this.compact = w < 560;
     this.camera.aspect = w / h;
     // on a wide screen the head sits left of centre, leaving the right for the readouts
-    if (this.compact || this.centred) this.camera.clearViewOffset();
+    // a narrow duet panel: the head sits back from the side it faces, leaving room for the words
+    // at its mouth
+    if (this.centred && w < 0.75 * h) this.camera.setViewOffset(w, h, this.facing * NARROW_SHIFT * w, 0, w, h);
+    else if (this.compact || this.centred) this.camera.clearViewOffset();
     else this.camera.setViewOffset(w, h, 0.1 * w, 0, w, h);
     this.camera.updateProjectionMatrix();
     this.beams.setResolution(w, h);
@@ -704,7 +712,9 @@ export class Anatomy3D {
     const r = this.restFor(model);
     const half = Math.tan((this.camera.fov * Math.PI) / 360);
     // fit the head's height (and its width in a narrow screen) at a male's size, so bodies compare
-    const d = 1.1 * Math.max(15.2 / half, 11 / (half * Math.max(0.3, this.camera.aspect)));
+    // (a narrow duet panel also fits the room for the words in front of the face)
+    const across = this.centred && this.camera.aspect < 0.75 ? NARROW_ACROSS : 11;
+    const d = 1.1 * Math.max(15.2 / half, across / (half * Math.max(0.3, this.camera.aspect)));
     const target = r.center.clone();
     // facing left: the same three-quarter view from the head's other side
     const az = this.facing > 0 ? 0.62 : Math.PI - 0.62, el = 0.2;
