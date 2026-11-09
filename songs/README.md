@@ -32,6 +32,15 @@ score, its words and everything made from it stay out of git.
 
 On a Mac: `brew install python ffmpeg fluid-synth lilypond`, and download a GM soundfont for `SF2`.
 
+## Ready-made shows
+
+The public-domain shows are also on the `shows` release, to skip the voice renders:
+
+```sh
+gh release download shows -R schani/chimera-vocal-synth -p '*.tar.gz' -D /tmp
+for f in /tmp/*-show.tar.gz; do tar xzf "$f" -C public/shows; done
+```
+
 ## Video
 
 `tools/show-video.sh <show-id> [out.mp4]` records a show as an MP4 on this machine's GPU: headless
