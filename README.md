@@ -43,6 +43,7 @@ cargo run --release -p chimera-cli -- compare csd    # against a real singer (do
 cargo run --release -p chimera-cli -- compare tsp    # against 23 real speakers (docs/speech-comparison.md)
 cargo run --release -p chimera-cli -- throat solve|render|song …  # khöömei, sygyt, kargyraa (docs/throat-singing.md)
 bun tools/spectrogram.ts in.wav out.png
+bun tools/musicxml-to-notes.ts score.mxl P1 --out p1.json   # a score's part → `render notes` melody
 ```
 
 ## Docs
