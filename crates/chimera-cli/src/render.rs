@@ -528,6 +528,7 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
     let out_name = wav_name(arg(a, 1, "out/notes"));
     let body_name = arg(a, 2, "male");
     let b = body(body_name)?;
+    let mix = body_mix(body_name)?;
     let text = std::fs::read_to_string(input).map_err(|e| format!("{input}: {e}"))?;
     let j: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("{input}: {e}"))?;
     let bpm = j["bpm"].as_f64().ok_or("bpm missing")?;
@@ -563,7 +564,7 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
         if phrase.is_empty() {
             return;
         }
-        let plan = plan_song(phrase, &SongOptions { body: body_name.into(), bpm, t0: start, vibrato, nasal_lead: j["nasalLead"].as_f64(), consonant_scale: j["consonantScale"].as_f64() });
+        let plan = plan_song(phrase, &SongOptions { body: mix, bpm, t0: start, vibrato, nasal_lead: j["nasalLead"].as_f64(), consonant_scale: j["consonantScale"].as_f64() });
         v.schedule(&plan.gestures);
         *end = js_max(*end, plan.end);
         phrase.clear();

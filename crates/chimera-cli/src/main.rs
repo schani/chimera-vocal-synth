@@ -62,7 +62,8 @@ pub fn body(name: &str) -> Result<HumanBody, String> {
         "male" => Ok(BODY_MALE),
         "female" => Ok(BODY_FEMALE),
         "child" => Ok(BODY_CHILD),
-        _ => Err(format!("unknown body {name:?}; have male, female, child")),
+        _ if name.starts_with("mix:") => Ok(body_mix(name)?.body()),
+        _ => Err(format!("unknown body {name:?}; have male, female, child, mix:<female>,<child>")),
     }
 }
 
@@ -72,7 +73,14 @@ pub fn body_mix(name: &str) -> Result<BodyMix, String> {
         "male" => Ok(BodyMix::new(0.0, 0.0)),
         "female" => Ok(BodyMix::new(1.0, 0.0)),
         "child" => Ok(BodyMix::new(0.0, 1.0)),
-        _ => Err(format!("unknown body {name:?}; have male, female, child")),
+        _ => {
+            // "mix:<female>,<child>": a blend between the presets, each weight 0..1
+            let w: Vec<f64> = name.strip_prefix("mix:").unwrap_or("").split(',').filter_map(|x| x.parse().ok()).collect();
+            match w[..] {
+                [f, c] => Ok(BodyMix::new(f, c)),
+                _ => Err(format!("unknown body {name:?}; have male, female, child, mix:<female>,<child>")),
+            }
+        }
     }
 }
 
