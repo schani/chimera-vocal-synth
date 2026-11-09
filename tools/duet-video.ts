@@ -5,13 +5,15 @@
  * (software WebGL on a server can take seconds a frame). The show's mix is then muxed in.
  *
  * Usage: bun tools/duet-video.ts <show-id> <out.mp4> [--url http://127.0.0.1:5318/] [--fps 30]
- *        [--workers 4] [--size 1280x720] [--max-frames n]
+ *        [--workers 4] [--size 1280x720] [--max-frames n] [--gpu]
  * Needs `bun run preview` (or dev) serving the show, and ffmpeg on PATH. Workers split the frames
  * into ranges; each renders a short warm-up before its range so springs and particles are settled
- * at the seam. Set CHROME to use a specific Chromium build.
+ * at the seam. Set CHROME to use a specific Chromium build (default: Google Chrome where it is
+ * installed, else Playwright's own). `--gpu` renders WebGL on the machine's GPU in visible browser
+ * windows (headless Chromium falls back to software WebGL); without it, SwiftShader.
  */
 import { chromium } from "playwright-core";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -21,7 +23,10 @@ const opt = (k: string, d: string) => {
   const i = argv.indexOf(k);
   return i >= 0 ? argv[i + 1] : d;
 };
-const [id, outFile] = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.startsWith("--"));
+const VALUED = new Set(["--url", "--fps", "--workers", "--size", "--max-frames"]);
+const [id, outFile] = argv.filter((a, i) => !a.startsWith("--") && !VALUED.has(argv[i - 1]));
+const gpu = argv.includes("--gpu");
+const CHROMES = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"];
 const base = opt("--url", "http://127.0.0.1:5318/");
 const fps = Number(opt("--fps", "30"));
 const [W, H] = opt("--size", "1280x720").split("x").map(Number);
@@ -30,9 +35,9 @@ const WARM = 20;
 /** Render frames [from, to) of the show into dir (a worker). */
 async function worker(dir: string, from: number, to: number): Promise<void> {
   const browser = await chromium.launch({
-    headless: true,
-    executablePath: process.env.CHROME || undefined,
-    args: ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
+    headless: !gpu,
+    executablePath: process.env.CHROME || CHROMES.find((p) => existsSync(p)),
+    args: gpu ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
   });
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
@@ -68,7 +73,7 @@ if (process.env.DUET_WORKER) {
 }
 
 if (!id || !outFile) {
-  console.error("usage: bun tools/duet-video.ts <show-id> <out.mp4> [--url …] [--fps 30] [--workers 4] [--size 1280x720]");
+  console.error("usage: bun tools/duet-video.ts <show-id> <out.mp4> [--url …] [--fps 30] [--workers 4] [--size 1280x720] [--max-frames n] [--gpu]");
   process.exit(2);
 }
 const show = await (await fetch(`${base}shows/${id}/show.json`)).json();
