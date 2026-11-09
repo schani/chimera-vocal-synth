@@ -15,7 +15,8 @@ for tests and the `chimera` CLI.
   English, Korean or Chinese (Mandarin, as characters or as pinyin with tones), even in one line:
   each word goes to its language's front end. Other languages can come in as IPA syllables ([docs/language-front-ends.md](docs/language-front-ends.md)).
 - **Beatbox**: pads and a step sequencer, every drum an articulatory gesture.
-- **Bestiary**: songbird (two-voice syrinx), seal, alligator and elephant.
+- **Bestiary**: songbird (two-voice syrinx), seal, alligator, elephant, and flatulence (the anal
+  sphincter as a lip reed driven by the rectal gas; [docs/flatulence.md](docs/flatulence.md)).
 - **Duet** (`?show=<id>`): two 3D heads replay a pre-rendered song.
 
 Male, female and child bodies blend continuously. Everything on screen animates from live
@@ -61,6 +62,8 @@ bun tools/duet-video.ts <show-id> out.mp4         # a duet show as video, frame-
   (English, Korean, Mandarin), adding a language, and the scramble test.
 - [docs/speech-comparison.md](docs/speech-comparison.md): scoring the speech against real
   speakers, phone by phone (the TSP speech database).
+- [docs/flatulence.md](docs/flatulence.md): flatulence from the anatomy and physics of the
+  anorectum, with every parameter's source, the measurements and the limits.
 - [docs/throat-singing.md](docs/throat-singing.md): Tuvan throat singing by tract shape, the
   ventricular folds for kargyraa, and phrases as long as the simulated breath.
 - [docs/hill-climb/](docs/hill-climb/): the rules and log for tuning the voice one measured
