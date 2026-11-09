@@ -559,7 +559,8 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
     });
     // optional voice source overrides ("source": a SourcePatch, e.g. pressure, tension, roughness,
     // brightness) and rasp ("grit": ventricular depth 0..1, "gritIrregularity" 0..1, "gritSub" 0..1
-    // how often closures alternate: an octave-down growl under the rasp)
+    // how often closures alternate: an octave-down growl under the rasp; "raspNoise": turbulence
+    // at the false folds, × a smooth constriction's)
     if let Some(src) = j.get("source") {
         let patch: SourcePatch = serde_json::from_value(src.clone()).map_err(|e| format!("source: {e}"))?;
         v.set_source(&patch);
@@ -573,6 +574,9 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             patch.set(key, val.as_f64().ok_or(format!("artic.{name}: not a number"))?);
         }
         v.set_articulation(&patch, None);
+    }
+    if let Some(r) = j["raspNoise"].as_f64() {
+        v.set_rasp_noise(r);
     }
     if let Some(g) = j["grit"].as_f64() {
         v.set_grit(g, j["gritIrregularity"].as_f64().unwrap_or(0.6), j["gritSub"].as_f64().unwrap_or(0.0));

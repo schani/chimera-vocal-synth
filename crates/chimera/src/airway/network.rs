@@ -172,11 +172,18 @@ pub struct NoiseSpec {
     pub gain: f64,
     pub lowpass_hz: f64,
     pub highpass_hz: f64,
+    /// branch whose flow drives the Reynolds number (default `src`; another branch's breaks the
+    /// loop where a strong source's own pressure moves the flow that sets its level)
+    pub drive: usize,
 }
 
 impl NoiseSpec {
     pub fn new(src: usize, fwd: usize, bwd: usize, gain: f64) -> Self {
-        NoiseSpec { src, fwd, bwd, gain, lowpass_hz: 7000.0, highpass_hz: 400.0 }
+        NoiseSpec { src, fwd, bwd, gain, lowpass_hz: 7000.0, highpass_hz: 400.0, drive: src }
+    }
+    pub fn driven_by(mut self, branch: usize) -> Self {
+        self.drive = branch;
+        self
     }
     pub fn band(mut self, lowpass_hz: f64, highpass_hz: f64) -> Self {
         self.lowpass_hz = lowpass_hz;
@@ -188,6 +195,7 @@ impl NoiseSpec {
 #[derive(Clone, Copy, Debug)]
 pub struct NoiseSource {
     pub src: usize,
+    pub drive: usize,
     pub fwd: usize,
     pub bwd: usize,
     pub gain: f64,
@@ -746,6 +754,7 @@ impl AirwayNetwork {
             let prev = self.noise.iter().find(|o| o.src == s.src && o.fwd == s.fwd);
             self.noise_next.push(NoiseSource {
                 src: s.src,
+                drive: s.drive,
                 fwd: s.fwd,
                 bwd: s.bwd,
                 gain: s.gain,
@@ -1121,7 +1130,7 @@ impl AirwayNetwork {
         for i in 0..self.noise.len() {
             let s = &mut self.noise[i];
             let a = self.branch_area[s.src];
-            let u = self.u[s.src];
+            let u = self.u[s.drive];
             let mut amp = 0.0;
             if a > self.closed_area {
                 // Re = v·d_h/ν with d_h = 2√(A/π) → Re = |U|·2/(ν·√(πA))

@@ -56,14 +56,15 @@ impl VentricularFolds {
         self.depth > 0.0 || self.depth_sm > 1e-5
     }
 
-    /// Rasp: each glottal cycle the folds may close (with chance `irregularity`) during its pulse,
-    /// to an open fraction drawn log-uniformly between 1 and 10^(-2·depth): partial, aperiodic
-    /// supraglottal closures that roughen the voice without halving its pitch.
+    /// Rasp: each glottal cycle the folds may narrow (with chance `irregularity`) during its pulse,
+    /// to an open fraction drawn between 1 and 1 − 0.6·depth: shallow, aperiodic supraglottal
+    /// motion that roughens the voice. Never near closure: choking whole pulses drops them at
+    /// random, a crackle, not a rasp.
     fn next_rasp(&mut self, glottal_phase: f64) -> f64 {
         if glottal_phase < self.last_phi {
             let (u, v, w) = (self.draw(), self.draw(), self.draw());
             self.closed = if w < self.sub { !self.closed } else { u < self.irregularity };
-            self.this_closure = if self.closed { crate::math::pow(10.0, -2.0 * self.depth_sm * v) } else { 1.0 };
+            self.this_closure = if self.closed { 1.0 - 0.6 * self.depth_sm * v } else { 1.0 };
         }
         self.last_phi = glottal_phase;
         let d = (glottal_phase - RASP_AT).abs();
