@@ -21,6 +21,10 @@ pub struct VentricularFolds {
     /// toward 1: the irregular, partial supraglottal vibration of a rock singer's "dist" tone,
     /// Borch, Sundberg, Lindestad & Thalén 2004)
     pub irregularity: f64,
+    /// 0..1: how often a cycle's closure alternates with the last one's (period doubling: growl)
+    /// rather than being drawn at random
+    pub sub: f64,
+    closed: bool,
     depth_sm: f64,
     sm_coef: f64,
     /// this closure's share of the depth (1 when regular)
@@ -43,7 +47,7 @@ const FLOOR: f64 = 0.01;
 
 impl VentricularFolds {
     pub fn new(fs: f64) -> Self {
-        VentricularFolds { depth: 0.0, irregularity: 0.0, depth_sm: 0.0, sm_coef: 1.0 - exp(-1.0 / (0.02 * fs)), this_closure: 1.0, last_phi: 0.0, rng: 0x9E37_79B9 }
+        VentricularFolds { depth: 0.0, irregularity: 0.0, sub: 0.0, closed: false, depth_sm: 0.0, sm_coef: 1.0 - exp(-1.0 / (0.02 * fs)), this_closure: 1.0, last_phi: 0.0, rng: 0x9E37_79B9 }
     }
 
     /// Whether the valve is (still) acting: false once it has relaxed fully open.
@@ -57,9 +61,9 @@ impl VentricularFolds {
     /// supraglottal closures that roughen the voice without halving its pitch.
     fn next_rasp(&mut self, glottal_phase: f64) -> f64 {
         if glottal_phase < self.last_phi {
-            let u = self.draw();
-            let v = self.draw();
-            self.this_closure = if u < self.irregularity { crate::math::pow(10.0, -2.0 * self.depth_sm * v) } else { 1.0 };
+            let (u, v, w) = (self.draw(), self.draw(), self.draw());
+            self.closed = if w < self.sub { !self.closed } else { u < self.irregularity };
+            self.this_closure = if self.closed { crate::math::pow(10.0, -2.0 * self.depth_sm * v) } else { 1.0 };
         }
         self.last_phi = glottal_phase;
         let d = (glottal_phase - RASP_AT).abs();

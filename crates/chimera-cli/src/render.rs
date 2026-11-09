@@ -558,7 +558,8 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
         ..Default::default()
     });
     // optional voice source overrides ("source": a SourcePatch, e.g. pressure, tension, roughness,
-    // brightness) and rasp ("grit": ventricular depth 0..1, "gritIrregularity" 0..1)
+    // brightness) and rasp ("grit": ventricular depth 0..1, "gritIrregularity" 0..1, "gritSub" 0..1
+    // how often closures alternate: an octave-down growl under the rasp)
     if let Some(src) = j.get("source") {
         let patch: SourcePatch = serde_json::from_value(src.clone()).map_err(|e| format!("source: {e}"))?;
         v.set_source(&patch);
@@ -574,7 +575,7 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
         v.set_articulation(&patch, None);
     }
     if let Some(g) = j["grit"].as_f64() {
-        v.set_grit(g, j["gritIrregularity"].as_f64().unwrap_or(0.6));
+        v.set_grit(g, j["gritIrregularity"].as_f64().unwrap_or(0.6), j["gritSub"].as_f64().unwrap_or(0.0));
     }
     let (mut t, mut k, mut end) = (t0, 0usize, 0.0f64);
     let mut phrase: Vec<SungNote> = Vec::new();
