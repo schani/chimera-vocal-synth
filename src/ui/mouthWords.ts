@@ -53,12 +53,16 @@ export function mouthWords(now: () => MouthWord | null, color: string, side: 1 |
     const lx = r.X(lips.pos), ly = r.Y(lips.pos);
     const x0 = lx + side * r.pxPerCm * 1.2;
     const ahead = side > 0 ? w - x0 - 14 : x0 - 14;
-    // no room in front of the mouth (a narrow screen the head fills): the words go under the chin,
-    // below the neck, and fall away downwards
-    const below = ahead < 60;
-    const room = below ? w - 16 : ahead;
+    // from the lips to the screen's edge: a word that doesn't fit ahead of x0 slides back toward
+    // the lips (and shrinks if it must), staying at the mouth
+    const reach = side > 0 ? w - lx - 14 : lx - 14;
+    // no room in front of the mouth at all (a narrow screen the head fills): the words go under
+    // the chin, below the neck, and fall away downwards
+    const below = reach < 48;
+    const room = below ? w - 16 : Math.max(ahead, reach);
     const base = Math.max(26, Math.min(64, r.pxPerCm * 1.7));
     const by = Math.min(h - 14, ly + r.pxPerCm * 18);
+    let start = x0; // where the sounding word begins
     for (const { word: wd, left } of trail) {
       const age = left === null ? 0 : clock - left;
       const u = Math.min(1, age / FADE);
@@ -71,8 +75,13 @@ export function mouthWords(now: () => MouthWord | null, color: string, side: 1 |
       if (below) {
         const half = (Math.min(wide, room) * (1 - 0.55 * u)) / 2;
         label(ctx, text, Math.min(w - 8 - half, Math.max(8 + half, lx)), by + age * 120, { ...o, align: "center" });
-      } else label(ctx, text, x0 + side * age * 240, ly + size * 0.36 - age * 200, { ...o, align: side > 0 ? "left" : "right" });
+      } else {
+        const span = Math.min(wide, room) * (1 - 0.55 * u);
+        const x = side > 0 ? Math.min(x0, w - 14 - span) : Math.max(x0, 14 + span);
+        if (left === null) start = x;
+        label(ctx, text, x + side * age * 240, ly + size * 0.36 - age * 200, { ...o, align: side > 0 ? "left" : "right" });
+      }
     }
-    if (!below && trail[trail.length - 1].left === null) seg(ctx, lx + side * 10, ly, x0 - side * 10, ly, color, 1, { dash: [2, 5], alpha: 0.7 });
+    if (!below && trail[trail.length - 1].left === null && side * (start - lx) > 24) seg(ctx, lx + side * 10, ly, start - side * 10, ly, color, 1, { dash: [2, 5], alpha: 0.7 });
   };
 }
