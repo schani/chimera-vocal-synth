@@ -463,3 +463,112 @@ fn render_notes_tele_records_the_live_telemetry_without_changing_the_sound() {
     let a_lip = artic["frames"][96][lip].as_f64().unwrap(); // 0.96 s = 60 tele hops
     assert!((at(60, 11 + lip) as f64 - a_lip).abs() < 1e-3, "lipAp {} vs {a_lip}", at(60, 11 + lip));
 }
+
+/// Level (dB) of frequency `f` in `x` (Hann-windowed single-bin DFT).
+fn level_db(x: &[f64], fs: f64, f: f64) -> f64 {
+    let n = x.len() as f64;
+    let (mut re, mut im) = (0.0, 0.0);
+    for (i, &v) in x.iter().enumerate() {
+        let w = 0.5 - 0.5 * (std::f64::consts::TAU * i as f64 / n).cos();
+        let ph = std::f64::consts::TAU * f * i as f64 / fs;
+        re += w * v * ph.cos();
+        im -= w * v * ph.sin();
+    }
+    10.0 * (re * re + im * im).log10()
+}
+
+/// Render a throat melody of two 0.9 s notes on `f0` and check that each note's harmonic leads
+/// both neighbours by more than 6 dB in the sound itself.
+fn assert_throat_melody(name: &str, f0: f64, notes: [f64; 2], extra: &[&str]) {
+    let stem = tmp(name);
+    let (f0s, a, b) = (f0.to_string(), format!("{}:0.9", notes[0]), format!("{}:0.9", notes[1]));
+    let mut args = vec!["throat", "render", &stem, &f0s, &a, &b];
+    args.extend_from_slice(extra);
+    let stdout = chimera(&args);
+    assert!(stdout.contains(&format!("wrote {stem}.wav")), "{stdout}");
+    let bytes = std::fs::read(format!("{stem}.wav")).unwrap();
+    let x: Vec<f64> = bytes[44..]
+        .chunks_exact(2)
+        .map(|c| i16::from_le_bytes([c[0], c[1]]) as f64)
+        .collect();
+    let fs = 48000.0;
+    // each note starts at 0.4 s + 0.9 s·k; measure 0.5 s from 0.3 s into it (articulators settled)
+    for (k, n) in notes.iter().enumerate() {
+        let start = ((0.4 + 0.9 * k as f64 + 0.3) * fs) as usize;
+        let seg = &x[start..start + (0.5 * fs) as usize];
+        let peak = |h: f64| {
+            // the drone wobbles a few cents: take the max over ±1 % around the harmonic
+            (-2..=2)
+                .map(|d| level_db(seg, fs, h * f0 * (1.0 + 0.005 * d as f64)))
+                .fold(f64::NEG_INFINITY, f64::max)
+        };
+        let (t, lo, hi) = (peak(*n), peak(n - 1.0), peak(n + 1.0));
+        assert!(
+            t - lo.max(hi) > 6.0,
+            "{name} harmonic {n}: {t:.1} dB vs neighbours {lo:.1} / {hi:.1}"
+        );
+    }
+}
+
+#[test]
+fn throat_render_lifts_the_melody_harmonic_over_its_neighbours() {
+    // khöömei on a low (82 Hz) drone: the melody is harmonics 16 then 20, made by tract shape alone
+    assert_throat_melody("khoomei", 82.0, [16.0, 20.0], &[]);
+    // sygyt: nearly closed lips, tongue tip raised, on a higher drone
+    assert_throat_melody("sygyt", 155.0, [9.0, 12.0], &["--style", "sygyt"]);
+}
+
+#[test]
+fn throat_solve_scores_the_whole_band_on_a_low_drone() {
+    // a 49 Hz drone sings on harmonic 30 (1.47 kHz): the cost once scored a fixed 26 harmonics,
+    // which indexed past its end here, and on a 65 Hz drone ignored everything above 1.7 kHz
+    let stdout = chimera(&["throat", "solve", "49", "30"]);
+    let lead: f64 = stdout
+        .split("lead over n±1 ")
+        .nth(1)
+        .and_then(|s| s.split(' ').next())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| panic!("no lead in {stdout}"));
+    assert!(lead > 5.0, "{stdout}");
+    // the printed response covers harmonics up to 4 kHz (82 of 49 Hz), not 26
+    let row = stdout.lines().find(|l| l.contains("from h1:")).unwrap();
+    assert!(row.split(':').nth(1).unwrap().split_whitespace().count() >= 82, "{row}");
+}
+
+#[test]
+fn throat_song_phrases_last_as_long_as_the_simulated_air() {
+    // the first breath ends with its score; the second holds its last note on half a litre of
+    // air, which the pressed drone (~110 mL/s through the simulated glottis) spends in ~4-5 s
+    let song = tmp("breaths.txt");
+    std::fs::write(&song, "khoomei 110 8:0.6 9:0.6\nkhoomei 110 8:0.5 9:*  lungs=0.5\n").unwrap();
+    let stem = tmp("breaths");
+    let stdout = chimera(&["throat", "song", &song, &stem]);
+    let breath = |k: usize| stdout.lines().find(|l| l.starts_with(&format!("breath {k} "))).unwrap_or_else(|| panic!("no breath {k} in {stdout}"));
+    assert!(breath(1).ends_with("ended by the score"), "{stdout}");
+    assert!(breath(2).ends_with("ended by the air"), "{stdout}");
+    let sang: f64 = breath(2).split("sang ").nth(1).unwrap().split(' ').next().unwrap().parse().unwrap();
+    assert!((3.0..7.0).contains(&sang), "half a litre lasted {sang} s:\n{stdout}");
+    assert!(stdout.contains(&format!("wrote {stem}.wav")), "{stdout}");
+}
+
+#[test]
+fn throat_kargyraa_drops_the_drone_an_octave_through_the_ventricular_folds() {
+    // the folds run at 115 Hz; the ventricular folds choke every other pulse, so the half-way
+    // partials ((k - ½)·115 Hz) come up to about the level of the folds' own harmonics. Without
+    // the valve (khöömei on the same 115 Hz folds) they are absent.
+    let level_of = |stem: &str| {
+        let b = std::fs::read(format!("{stem}.wav")).unwrap();
+        let x: Vec<f64> = b[44..].chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]]) as f64).collect();
+        let fs = 48000.0;
+        let seg = &x[(1.0 * fs) as usize..(1.5 * fs) as usize];
+        let mean = |f: &dyn Fn(f64) -> f64| (1..=15).map(|k| level_db(seg, fs, f(k as f64))).sum::<f64>() / 15.0;
+        mean(&|k| (k - 0.5) * 115.0) - mean(&|k| k * 115.0)
+    };
+    let kar = tmp("kargyraa");
+    chimera(&["throat", "render", &kar, "57.5", "10:1.2", "--style", "kargyraa"]);
+    let plain = tmp("plain115");
+    chimera(&["throat", "render", &plain, "115", "5:1.2"]);
+    let (k, p) = (level_of(&kar), level_of(&plain));
+    assert!(k > -6.0, "kargyraa half-way partials {k:.1} dB under the harmonics");
+    assert!(p < -15.0, "without the valve the half-way partials sit at {p:.1} dB");
+}

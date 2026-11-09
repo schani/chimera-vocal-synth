@@ -41,6 +41,7 @@ cargo run --release -p chimera-cli -- render speech|text|song|notes|beatbox|crea
 cargo run --release -p chimera-cli -- diagnose       # nasal leakage, formants, bandwidths, pitch
 cargo run --release -p chimera-cli -- compare csd    # against a real singer (docs/csd-comparison.md)
 cargo run --release -p chimera-cli -- compare tsp    # against 23 real speakers (docs/speech-comparison.md)
+cargo run --release -p chimera-cli -- throat solve|render|song …  # khöömei, sygyt, kargyraa (docs/throat-singing.md)
 bun tools/spectrogram.ts in.wav out.png
 ```
 
@@ -58,6 +59,8 @@ bun tools/spectrogram.ts in.wav out.png
   (English, Korean, Mandarin), adding a language, and the scramble test.
 - [docs/speech-comparison.md](docs/speech-comparison.md): scoring the speech against real
   speakers, phone by phone (the TSP speech database).
+- [docs/throat-singing.md](docs/throat-singing.md): Tuvan throat singing by tract shape, the
+  ventricular folds for kargyraa, and phrases as long as the simulated breath.
 - [docs/hill-climb/](docs/hill-climb/): the rules and log for tuning the voice one measured
   step at a time.
 
