@@ -9,8 +9,9 @@
  * Needs `bun run preview` (or dev) serving the show, and ffmpeg on PATH. Workers split the frames
  * into ranges; each renders a short warm-up before its range so springs and particles are settled
  * at the seam. Set CHROME to use a specific Chromium build (default: Google Chrome where it is
- * installed, else Playwright's own). `--gpu` renders WebGL on the machine's GPU in visible browser
- * windows (headless Chromium falls back to software WebGL); without it, SwiftShader.
+ * installed, else Playwright's own). WebGL runs on the GPU through Metal on a Mac (headless, as the
+ * layout lint does); elsewhere `--gpu` uses the GPU in visible browser windows, and without it
+ * SwiftShader draws on the CPU (seconds a frame).
  */
 import { chromium } from "playwright-core";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
@@ -34,10 +35,11 @@ const WARM = 20;
 
 /** Render frames [from, to) of the show into dir (a worker). */
 async function worker(dir: string, from: number, to: number): Promise<void> {
+  const mac = process.platform === "darwin";
   const browser = await chromium.launch({
-    headless: !gpu,
+    headless: mac || !gpu,
     executablePath: process.env.CHROME || CHROMES.find((p) => existsSync(p)),
-    args: gpu ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
+    args: mac ? ["--use-angle=metal", "--ignore-gpu-blocklist"] : gpu ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
   });
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });

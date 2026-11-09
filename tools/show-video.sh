@@ -1,5 +1,5 @@
 #!/bin/sh
-# A duet show as an MP4 on this machine's GPU: builds the app, serves it, captures, stops.
+# A duet show as an MP4 on this machine's GPU (Metal on a Mac): builds the app, serves it, captures, stops.
 # usage: tools/show-video.sh <show-id> [out.mp4] [duet-video options, e.g. --fps 30 --size 1920x1080]
 # Needs the show in public/shows/<id>/, Bun, ffmpeg, and Google Chrome (or CHROME=/path/to/chromium).
 set -eu

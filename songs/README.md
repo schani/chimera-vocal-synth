@@ -34,6 +34,6 @@ On a Mac: `brew install python ffmpeg fluid-synth lilypond`, and download a GM s
 
 ## Video
 
-`tools/show-video.sh <show-id> [out.mp4]` records a show as an MP4 on this machine's GPU (Chrome
-windows open while it captures). Without a GPU, `bun tools/duet-video.ts` (no `--gpu`) works in
-software, at seconds a frame.
+`tools/show-video.sh <show-id> [out.mp4]` records a show as an MP4 on this machine's GPU: headless
+through Metal on a Mac, in visible Chrome windows elsewhere. Without a GPU, `bun tools/duet-video.ts`
+(no `--gpu`) works in software, at seconds a frame.
