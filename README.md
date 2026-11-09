@@ -44,6 +44,7 @@ cargo run --release -p chimera-cli -- compare tsp    # against 23 real speakers 
 cargo run --release -p chimera-cli -- throat solve|render|song …  # khöömei, sygyt, kargyraa (docs/throat-singing.md)
 bun tools/spectrogram.ts in.wav out.png
 bun tools/musicxml-to-notes.ts score.mxl P1 --out p1.json   # a score's part → `render notes` melody
+bun tools/duet-video.ts <show-id> out.mp4         # a duet show as video, frame-exact (needs bun run preview)
 ```
 
 ## Docs
