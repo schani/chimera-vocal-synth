@@ -12,6 +12,12 @@ import { connectMidi, disconnectMidi, type MidiStatus } from "./midi.ts";
 
 export type Mode = "play" | "speak" | "sing" | "bestiary" | "beatbox";
 
+/** a link may open a mode and a creature: `?mode=bestiary&creature=flatulence` (read without the
+ *  engine: this module loads before the wasm) */
+const link = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+const linkMode = (["play", "speak", "sing", "bestiary", "beatbox"] as const).find((m) => m === link.get("mode"));
+const linkCreature = /^[a-z][\w-]*$/.test(link.get("creature") ?? "") ? link.get("creature")! : null;
+
 export interface BeatState {
   steps: (BeatStep | null)[];
   bpm: number;
@@ -132,7 +138,7 @@ export const useStore = create<State>((set, get) => ({
   hold: false,
   heldNotes: [],
   view: { pressure: true, particles: true, grid: false, calipers: true, threeD: false },
-  mode: "play",
+  mode: linkMode ?? (linkCreature ? "bestiary" : "play"),
   setMode: (m) => {
     const prev = get().mode;
     if (prev === m) return;
@@ -163,7 +169,7 @@ export const useStore = create<State>((set, get) => ({
     }
     updateGate(get());
   },
-  creature: "songbird",
+  creature: linkCreature ?? "songbird",
   cparams: {},
   keyCall: null,
   setKeyCall: (id) => {
