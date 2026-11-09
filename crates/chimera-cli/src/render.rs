@@ -557,6 +557,25 @@ pub fn notes(ctx: &Ctx, a: &[String]) -> Result<(), String> {
         tension: Some(0.55),
         ..Default::default()
     });
+    // optional voice source overrides ("source": a SourcePatch, e.g. pressure, tension, roughness,
+    // brightness) and rasp ("grit": ventricular depth 0..1, "gritIrregularity" 0..1)
+    if let Some(src) = j.get("source") {
+        let patch: SourcePatch = serde_json::from_value(src.clone()).map_err(|e| format!("source: {e}"))?;
+        v.set_source(&patch);
+    }
+    // a held posture for keys the sung plan leaves alone ("artic": {"epilarynx": 0.6} twang,
+    // "ventricular" the false folds' narrowing)
+    if let Some(obj) = j.get("artic").and_then(|a| a.as_object()) {
+        let mut patch = chimera::anatomy::human::ArticPatch::default();
+        for (name, val) in obj {
+            let key = chimera::anatomy::human::ArticKey::from_name(name).ok_or(format!("artic: unknown key {name}"))?;
+            patch.set(key, val.as_f64().ok_or(format!("artic.{name}: not a number"))?);
+        }
+        v.set_articulation(&patch, None);
+    }
+    if let Some(g) = j["grit"].as_f64() {
+        v.set_grit(g, j["gritIrregularity"].as_f64().unwrap_or(0.6));
+    }
     let (mut t, mut k, mut end) = (t0, 0usize, 0.0f64);
     let mut phrase: Vec<SungNote> = Vec::new();
     let mut start = t;

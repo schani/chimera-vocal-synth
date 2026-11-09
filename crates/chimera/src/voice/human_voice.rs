@@ -312,6 +312,13 @@ impl HumanVoice {
         self.ventricular.depth = clamp(depth, 0.0, 1.0);
     }
 
+    /// Rasp: the ventricular folds close part-way and irregularly (`irregularity` 0..1 of each
+    /// closure's depth varies at random), roughening the voice without dropping its pitch.
+    pub fn set_grit(&mut self, depth: f64, irregularity: f64) {
+        self.ventricular.depth = clamp(depth, 0.0, 1.0);
+        self.ventricular.irregularity = clamp(irregularity, 0.0, 1.0);
+    }
+
     pub fn set_source(&mut self, values: &SourcePatch) {
         values.apply(&mut self.source);
         self.apply_source();
