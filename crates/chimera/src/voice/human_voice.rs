@@ -312,19 +312,6 @@ impl HumanVoice {
         self.ventricular.depth = clamp(depth, 0.0, 1.0);
     }
 
-    /// Rasp: the ventricular folds close part-way and irregularly (`irregularity` 0..1 of each
-    /// closure's depth varies at random), roughening the voice without dropping its pitch.
-    /// Rasp noise: turbulence at the false folds, `gain` × a smooth constriction's (0 off).
-    pub fn set_rasp_noise(&mut self, gain: f64) {
-        self.airway.rasp_noise = js_max(0.0, gain);
-    }
-
-    pub fn set_grit(&mut self, depth: f64, irregularity: f64, sub: f64) {
-        self.ventricular.depth = clamp(depth, 0.0, 1.0);
-        self.ventricular.irregularity = clamp(irregularity, 0.0, 1.0);
-        self.ventricular.sub = clamp(sub, 0.0, 1.0);
-    }
-
     pub fn set_source(&mut self, values: &SourcePatch) {
         values.apply(&mut self.source);
         self.apply_source();

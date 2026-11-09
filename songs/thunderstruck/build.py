@@ -2,7 +2,8 @@
 wordless "Thun-der" chants given their words). Writes, into out/:
 - lead.json, p2_1..3.json, p3_1..3.json (+ .body): melody files at bpm 60 (beats = seconds) on the
   score's tempo map, from tools/musicxml-to-notes.ts output (P1/P2/P3.json at 140 bpm), with the
-  rock voice: belt (pressure, pressed, bright), rasp (grit), twang; the backing parts as gang vocals.
+  rock voice: belt (pressure, pressed, bright), twang, the false folds held narrow; the backing parts
+  as gang vocals.
 - band-score.mid (the arrangement's own instruments) and band-electric.mid (distorted guitars,
   picked bass, and a plain rock beat added where the bass plays: the score has no drum kit)."""
 import json, os, sys
@@ -26,9 +27,9 @@ def sec(b):
 
 LEAD = 0.5  # s of silence before beat 0 (consonants land before the beat)
 ROCK = {"source": {"pressure": 14, "tension": 0.8, "brightness": 0.6, "roughness": 0.3},
-        "grit": 0.8, "gritIrregularity": 0.7, "artic": {"epilarynx": 0.6, "ventricular": 0.5}, "vibrato": 18}
+        "artic": {"epilarynx": 0.6, "ventricular": 0.5}, "vibrato": 18}
 GANG = {"source": {"pressure": 13, "tension": 0.75, "brightness": 0.55, "roughness": 0.35},
-        "grit": 0.6, "gritIrregularity": 0.6, "artic": {"epilarynx": 0.4, "ventricular": 0.4}, "vibrato": 10}
+        "artic": {"epilarynx": 0.4, "ventricular": 0.4}, "vibrato": 10}
 
 def retime(m, cents=0.0, ms=0.0, extra=None):
     assert abs(m["bpm"] - 140) < 1e-6

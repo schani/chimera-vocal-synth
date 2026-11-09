@@ -95,8 +95,6 @@ pub struct HumanAirway {
     base: Option<[Vec<f64>; 4]>,
     base_dt: f64,
     noise_list: Vec<NoiseSpec>,
-    /// rasp: gain (× the constriction source's) of turbulence at the ventricular folds, 0 off
-    pub rasp_noise: f64,
     scratch_frame: HumanFrame,
 }
 
@@ -194,7 +192,6 @@ impl HumanAirway {
             base: None,
             base_dt: 0.0,
             noise_list: Vec::with_capacity(8),
-            rasp_noise: 0.0,
             scratch_frame: HumanFrame::with_capacity(),
         }
     }
@@ -319,16 +316,6 @@ impl HumanAirway {
         list.clear();
         // aspiration: jet from the glottis hits the epilarynx/ventricular region
         list.push(NoiseSpec::new(self.glottis_port, self.branch_of(self.pharynx, 1), self.branch_of(self.trachea, self.trachea.n as isize - 2), g.glottis).band(3500.0, 300.0));
-        // rasp: the jet through the false folds, turbulent with every glottal pulse (its level follows
-        // the Reynolds number of the glottal flow through their area, so it pulses with the voice)
-        if self.rasp_noise > 0.0 {
-            let epi_len = 2.4 * self.body.scale * self.body.pharynx;
-            let i = ((0.4 * epi_len) / (self.ph_len / self.n_ph as f64)) as isize;
-            let (src, fwd, bwd) = (self.branch_of(self.pharynx, i), self.branch_of(self.pharynx, i + 2), self.branch_of(self.pharynx, i - 1));
-            // driven by the glottal flow: the source's own pressure moving the local flow fed back on
-            // its level (bursts, then instability above ~1000x)
-            list.push(NoiseSpec::new(src, fwd, bwd, g.constriction * self.rasp_noise).band(3500.0, 500.0).driven_by(self.glottis_port));
-        }
         // narrowest open point in pharynx+oral (global position index p over concatenated tubes)
         let (n_ph, n_or) = (self.n_ph, self.n_or);
         let mut min_a = f64::INFINITY;
