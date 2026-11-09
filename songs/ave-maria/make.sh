@@ -1,6 +1,7 @@
 #!/bin/sh
-# Schubert, Ave Maria D 839, sung German over piano: shows ave-maria-de (soprano) and
-# ave-maria-de-trio (soprano, tenor, child). Usage: songs/ave-maria/make.sh [--no-render]
+# Schubert, Ave Maria D 839, sung German: shows ave-maria-de (soprano over piano), ave-maria-de-trio
+# (soprano, tenor, child over piano), ave-maria-voices (soprano, the piano part sung by bass, alto
+# and descant) and ave-maria-six (the trio and those three). Usage: songs/ave-maria/make.sh [--no-render]
 set -eu
 . "$(dirname "$0")/../lib.sh"
 need lilypond "LilyPond 2.24+"
@@ -11,6 +12,7 @@ cp "$HERE/score.ly" "$OUT/ly/"
 (cd "$OUT/ly" && rm -f ./*.notes && lilypond -dno-point-and-click score.ly 2>&1 | grep -E "error|Success" || true)
 [ -f "$OUT/ly/score-voice.notes" ] || { echo "lilypond failed: run it in $OUT/ly" >&2; exit 1; }
 "$PY" "$HERE/build.py" "$OUT"
+(cd "$OUT" && "$PY" "$HERE/accomp.py" .)
 [ "$RENDER" = 1 ] || { echo "--no-render: melody files in $OUT"; exit 0; }
 
 need fluidsynth "and a General MIDI soundfont in SF2"
@@ -19,7 +21,8 @@ SOUNDFONT=$(sf2)
 fluidsynth -ni -q -g 0.8 -r 48000 -o synth.reverb.room-size=0.6 -o synth.reverb.level=0.5 \
   -F "$OUT/piano.wav" "$SOUNDFONT" "$OUT/piano.mid"
 
-printf '%s\n' "voice-female female tele" "voice-male male tele" "voice-child child tele" > "$OUT/jobs.txt"
+printf '%s\n' "voice-female female tele" "voice-male male tele" "voice-child child tele" \
+  "bass male tele" "alto mix:0.7,0 tele" "descant child tele" > "$OUT/jobs.txt"
 render_all "$OUT/jobs.txt"
 
 cd "$OUT"
@@ -30,7 +33,9 @@ v=[wavfile.read(f'voice-{b}.wav')[1].astype(float) for b in ('female','male','ch
 n=max(len(x) for x in v); v=[np.pad(x,(0,n-len(x))) for x in v]
 s=v[0]*1.0+v[1]*0.85+v[2]*0.6; wavfile.write('voice-trio.wav',48000,(s/abs(s).max()*0.75*32767).astype(np.int16))"
 "$PY" "$HERE/mix.py" piano.wav voice-trio.wav ave-maria-trio.wav 6
-for f in soprano trio; do ffmpeg -loglevel error -y -i ave-maria-$f.wav -b:a 192k ave-maria-$f.mp3; done
+"$PY" "$HERE/mix_voices.py" voice-female.wav . ave-maria-voices.wav
+"$PY" "$HERE/mix_voices.py" voice-female.wav,voice-male.wav,voice-child.wav . ave-maria-six.wav
+for f in soprano trio voices six; do ffmpeg -loglevel error -y -i ave-maria-$f.wav -b:a 192k ave-maria-$f.mp3; done
 
 install_show ave-maria-de ave-maria-soprano.mp3 voice-female.tele voice-female.json <<'J'
 { "title": "Schubert: Ave Maria (D 839), sung German", "audio": "ave-maria-soprano.mp3", "bpm": 26, "downbeat": 2.3077,
@@ -42,4 +47,22 @@ install_show ave-maria-de-trio ave-maria-trio.mp3 voice-female.tele voice-male.t
   "voices": [{ "name": "Tenor", "tele": "voice-male.tele", "melody": "voice-male.json" },
              { "name": "Child", "tele": "voice-child.tele", "melody": "voice-child.json" },
              { "name": "Soprano", "tele": "voice-female.tele", "melody": "voice-female.json" }] }
+J
+install_show ave-maria-voices ave-maria-voices.mp3 voice-female.tele voice-female.json bass.tele bass.json \
+  alto.tele alto.json descant.tele descant.json <<'J'
+{ "title": "Schubert: Ave Maria (D 839), the piano sung by three voices", "audio": "ave-maria-voices.mp3", "bpm": 26, "downbeat": 2.3077,
+  "voices": [{ "name": "Bass", "tele": "bass.tele", "melody": "bass.json" },
+             { "name": "Alto", "tele": "alto.tele", "melody": "alto.json" },
+             { "name": "Descant", "tele": "descant.tele", "melody": "descant.json" },
+             { "name": "Soprano", "tele": "voice-female.tele", "melody": "voice-female.json" }] }
+J
+install_show ave-maria-six ave-maria-six.mp3 voice-female.tele voice-male.tele voice-child.tele voice-female.json \
+  voice-male.json voice-child.json bass.tele bass.json alto.tele alto.json descant.tele descant.json <<'J'
+{ "title": "Schubert: Ave Maria (D 839), six voices", "audio": "ave-maria-six.mp3", "bpm": 26, "downbeat": 2.3077,
+  "voices": [{ "name": "Bass", "tele": "bass.tele", "melody": "bass.json" },
+             { "name": "Alto", "tele": "alto.tele", "melody": "alto.json" },
+             { "name": "Tenor", "tele": "voice-male.tele", "melody": "voice-male.json" },
+             { "name": "Soprano", "tele": "voice-female.tele", "melody": "voice-female.json" },
+             { "name": "Child", "tele": "voice-child.tele", "melody": "voice-child.json" },
+             { "name": "Descant", "tele": "descant.tele", "melody": "descant.json" }] }
 J

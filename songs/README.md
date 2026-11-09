@@ -6,7 +6,7 @@ are gitignored.
 
 | Command | Shows | Voices to render |
 |---|---|---|
-| `songs/ave-maria/make.sh` | `ave-maria-de`, `ave-maria-de-trio` | 3 × 6 min |
+| `songs/ave-maria/make.sh` | `ave-maria-de`, `ave-maria-de-trio`, `ave-maria-voices`, `ave-maria-six` | 6 × 6-7 min |
 | `songs/bleak-midwinter/make.sh` | `bleak-midwinter` | 12 × 5 min |
 | `songs/thunderstruck/make.sh <your.mxl>` | `thunderstruck-score`, `thunderstruck-electric` | 7 × 4 min |
 
