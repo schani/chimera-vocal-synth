@@ -158,6 +158,8 @@ pub struct LinearElements {
     pub fixed: Vec<bool>,
     pub rad_nodes: Vec<usize>,
     pub rad_area: Vec<f64>,
+    /// each radiator's admittance scale (1: the full baffled load; see `set_radiation_target`)
+    pub rad_scale: Vec<f64>,
 }
 
 /// A turbulence noise source request (control rate).
@@ -314,6 +316,10 @@ pub struct AirwayNetwork {
     /// radiated volume velocity of each radiator (telemetry)
     pub rad_u: Vec<f64>,
     rad_prev_total: f64,
+    /// each radiator's admittance scale (1 = the full load), its target and per-sample ramp
+    rad_scale: Vec<f64>,
+    rad_scale_target: Vec<f64>,
+    rad_scale_step: Vec<f64>,
 
     // --- sources/boundaries ---
     noise: Vec<NoiseSource>,
@@ -417,6 +423,9 @@ impl AirwayNetwork {
             rad_l_prev: Vec::new(),
             rad_u: Vec::new(),
             rad_prev_total: 0.0,
+            rad_scale: Vec::new(),
+            rad_scale_target: Vec::new(),
+            rad_scale_step: Vec::new(),
             noise: Vec::with_capacity(16),
             noise_next: Vec::with_capacity(16),
             rng: Rng::new(12345),
@@ -614,6 +623,9 @@ impl AirwayNetwork {
         self.rad_ul = zf(nr);
         self.rad_l_prev = zf(nr);
         self.rad_u = zf(nr);
+        self.rad_scale = vec![1.0; nr];
+        self.rad_scale_target = vec![1.0; nr];
+        self.rad_scale_step = zf(nr);
         for r in 0..nr {
             self.rad_of[self.rad_nodes[r]] = r as i32;
         }
@@ -673,6 +685,22 @@ impl AirwayNetwork {
         self.port_slit[branch] = slit_width;
     }
 
+    /// Scale a radiator's load admittance (its inertance and resistance divided by `scale`),
+    /// reached at the end of the next block: 1 is the full baffled load, 0 removes it (the
+    /// aperture then radiates nothing, as when the flatulence creature's cleft opens into a
+    /// toilet bowl instead of the room). The inductor's momentum follows the energy-safe rule
+    /// below, so the load fades without injecting energy. At 1 the arithmetic is unchanged.
+    pub fn set_radiation_target(&mut self, radiator: usize, scale: f64) {
+        self.rad_scale_target[radiator] = js_max(0.0, js_min(1.0, scale));
+    }
+
+    /// Set a port's additional series resistance (CGS acoustic ohms) at control rate, for a duct
+    /// whose loss the round-duct or Poiseuille-slit formulas don't describe (the flatulence
+    /// creature's seat leak: a slit wide against its boundary layer).
+    pub fn set_port_resistance(&mut self, branch: usize, r: f64) {
+        self.port_extra_r[branch] = js_max(0.0, r);
+    }
+
     /// Immediately set a port area (per-sample sources such as the glottis call this every sample).
     #[inline]
     pub fn set_port_area(&mut self, branch: usize, area: f64) {
@@ -711,6 +739,10 @@ impl AirwayNetwork {
                 self.port_area_step[j] = 0.0;
             }
         }
+        for r in 0..self.rad_scale.len() {
+            self.rad_scale[r] = self.rad_scale_target[r];
+            self.rad_scale_step[r] = 0.0;
+        }
     }
 
     /// Prepare per-sample linear ramps toward the targets over `samples` internal samples.
@@ -742,6 +774,9 @@ impl AirwayNetwork {
             if self.b_kind[j] == KIND_PORT {
                 self.port_area_step[j] = (self.port_area_target[j] - self.port_area[j]) * inv;
             }
+        }
+        for r in 0..self.rad_scale.len() {
+            self.rad_scale_step[r] = (self.rad_scale_target[r] - self.rad_scale[r]) * inv;
         }
     }
 
@@ -1037,7 +1072,12 @@ impl AirwayNetwork {
             wall_rad_sum += uw * self.wall_rad[k];
         }
 
-        // 5) nodes (radiation loads handled semi-implicitly)
+        // 5) nodes (radiation loads handled semi-implicitly); the loads' scales ramp first (a
+        //    constant scale adds 0.0, which leaves it exactly as it was)
+        for r in 0..self.rad_scale.len() {
+            let sc = self.rad_scale[r] + self.rad_scale_step[r];
+            self.rad_scale[r] = if sc < 0.0 { 0.0 } else { sc };
+        }
         let t2 = t * t;
         let mut rad_total = wall_rad_sum;
         let cl = self.closed_area;
@@ -1091,8 +1131,11 @@ impl AirwayNetwork {
             } else {
                 let r = r as usize;
                 let a = if self.area[k] > 1e-4 { self.area[k] } else { 1e-4 };
-                let lr = (8.0 * RHO) / (3.0 * PI * sqrt(PI * a));
-                let rr = (128.0 * RHO * C_SOUND) / (9.0 * PI * PI * a);
+                // the load scaled by its admittance (x / 1.0 is x exactly; at 0 both are infinite,
+                // and the load passes nothing)
+                let sc = self.rad_scale[r];
+                let lr = (8.0 * RHO) / (3.0 * PI * sqrt(PI * a)) / sc;
+                let rr = (128.0 * RHO * C_SOUND) / (9.0 * PI * PI * a) / sc;
                 let p_old = self.p[k];
                 // energy-safe: when the radiation inertance grows (aperture closing) conserve momentum
                 let lp = self.rad_l_prev[r];
@@ -1223,6 +1266,7 @@ impl AirwayNetwork {
             fixed: self.fixed.clone(),
             rad_nodes: self.rad_nodes.clone(),
             rad_area: self.rad_nodes.iter().map(|&k| js_max(a_t[k], 1e-4)).collect(),
+            rad_scale: self.rad_scale_target.clone(),
         }
     }
 

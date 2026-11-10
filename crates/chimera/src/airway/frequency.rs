@@ -112,8 +112,10 @@ pub fn transfer_function(el: &LinearElements, inject: usize, freqs: &[f64], cut:
                 let a = el.rad_area[r];
                 let lr = (8.0 * RHO) / (3.0 * PI * sqrt(PI * a));
                 let rr = (128.0 * RHO * C_SOUND) / (9.0 * PI * PI * a);
-                rad_yr[k] = 1.0 / rr;
-                rad_yi[k] = -1.0 / (w * lr);
+                // the load's admittance scale (1: unchanged, exactly)
+                let sc = el.rad_scale[r];
+                rad_yr[k] = 1.0 / rr * sc;
+                rad_yi[k] = -1.0 / (w * lr) * sc;
                 gr += rad_yr[k];
                 gi += rad_yi[k];
             }
