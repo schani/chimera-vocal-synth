@@ -7,7 +7,10 @@
  * zone and the distal ring at the verge each opened by the gas (their gaps from the engine,
  * magnified), the ischioanal fat and the
  * gluteal cheeks around the cleft (its gap from the engine's cleft areas), with the gas streaming
- * through at the engine's flow.
+ * through at the engine's flow. Seated on the toilet (the `toilet` control), the buttocks rest on
+ * the seat and the cleft opens into the bowl, drawn in the same section: the seat ring, the slit
+ * its bumpers leave over the rim (the seat leak), the vitreous-china bowl, its air lit by the
+ * engine's bowl pressure, and the water over the trap.
  *
  * Drawing units are centimetres, y up, the anal verge at the origin (as in the engine).
  */
@@ -25,6 +28,31 @@ const JUNCTION_TOP = 1.75;
 const ACROSS = 2 * (1.3 + 0.35);
 /** the verge's gap is a fraction of a millimetre: drawn this many times wider */
 export const GAP_MAGNIFY = 12;
+
+/** the toilet (flatus.rs, at true scale; it doesn't scale with the body): half the seat opening's
+ *  width (8-1/16 in), half the seat's outer width (about 14 in), the rim-to-water depth (5-1/2 in),
+ *  half the water surface's width (8 in), the seat leak's perimeter (the opening's, cm), and the
+ *  bowl's air (flatus::bowl_volume) */
+const SEAT_IN = 10.25;
+const SEAT_OUT = 17.9;
+const BOWL_DEPTH = 14;
+const WATER_HALF = 10.15;
+const SEAT_PERIMETER = 80;
+const BOWL_AIR_L = 6.0;
+/** drawing only (not in the model, which takes the seat's height and the tissue's sag into the
+ *  opening to cancel): the seat ring's thickness and where the seated buttocks meet it */
+const SEAT_THICK = 2.5;
+const seatTopAt = (size: number) => -3.0 * size - 1.4;
+
+/** the drawing's extents with the toilet in view (body size 1) */
+const TOILET_VIEW = { x0: -21, x1: 21, y0: -32, y1: 15 };
+
+/** The cutaway's extents: the creature's own, widening to take in the toilet as it sits down. */
+export function anorectumView(base: { x0: number; x1: number; y0: number; y1: number }, tele: CreatureTelemetry) {
+  const t = Math.max(0, Math.min(1, tele.params.toilet ?? 0));
+  const mix = (a: number, b: number) => a + (b - a) * t;
+  return { x0: mix(base.x0, TOILET_VIEW.x0), x1: mix(base.x1, TOILET_VIEW.x1), y0: mix(base.y0, TOILET_VIEW.y0), y1: mix(base.y1, TOILET_VIEW.y1) };
+}
 
 export interface AnorectumState {
   /** particles along the gas's path (0..1 each) and the turbulence's phase */
@@ -226,8 +254,14 @@ export function drawAnorectum(ctx: CanvasRenderingContext2D, S: (p: P) => Pt, sc
   for (let i = 0; i < n; i++) inner.push([-Math.max(0.05, gapAt(i) / 2), -((i + 0.5) / n) * depth]);
   const g = Math.max(0.05, gapAt(n - 1) / 2);
   inner.push([-g - 0.05 * depth, -depth]);
-  const lift = spread * 1.5;
-  const cheek: P[] = soft([...inner, [-g - 2.2, -depth - 1.6 + lift * 0.5], [-g - 6, -depth - 2.0 + lift], [-g - 9.6, -depth + 0.6 + lift], [-10.6, 2.5], [-10.2, 6.5]]);
+  // seated (the toilet control, smoothed), the buttocks rest on the seat ring and spread over it
+  const seated = Math.max(0, Math.min(1, prm.toilet ?? 0));
+  const lift = spread * 1.5 * (1 - 0.6 * seated);
+  const seatTop = seatTopAt(size);
+  const free: P[] = [[-g - 9.6, -depth + 0.6 + lift], [-10.4, 0], [-10.6, 2.5], [-10.2, 6.5]];
+  const onSeat: P[] = [[-SEAT_IN, seatTop], [-SEAT_OUT + 0.3, seatTop], [-SEAT_OUT - 1.3, seatTop + 3], [-SEAT_OUT - 0.7, 6.5]];
+  const outer = free.map(([x, y], i) => [x + (onSeat[i][0] - x) * seated, y + (onSeat[i][1] - y) * seated] as P);
+  const cheek: P[] = soft([...inner, [-g - 2.2, -depth - 1.6 + lift * 0.5], [-g - 6, -depth - 2.0 + lift], ...outer]);
   for (const side of both(cheek)) line(side, SLOTS[3], 1.6, 0.9, true);
   // the subcutaneous fat line and the ischioanal fossa's fat, dimmer
   const fat: P[] = soft([[-g - 1.5, -depth - 0.6 + lift * 0.4], [-g - 5.5, -depth - 0.9 + lift], [-g - 8.4, -depth + 1.0 + lift], [-9.2, 3.0], [-8.8, 6.0]]);
@@ -237,6 +271,8 @@ export function drawAnorectum(ctx: CanvasRenderingContext2D, S: (p: P) => Pt, sc
   putLeft("ISCHIOANAL FAT", S([-2.6, top - 2.0]), TEXT.secondary);
   put("GLUTEAL CLEFT", S([g + 0.6, -depth * 0.6]), SLOTS[3], true);
   put("BUTTOCK", S([-8.6, -depth - 0.4 + lift]), TEXT.secondary);
+
+  if (seated > 0.02) drawToilet(ctx, S, line, put, putLeft, tele, live, st, seatTop, seated);
 
   // ---- the gas's path: pocket → canal → verge → cleft → out, particles at the engine's flow
   const path: P[] = [[0, cy - ry * 0.3], [0, top], [0, valveTop], [0, 0], [0, -depth], [0, -depth - 2.5]];
@@ -278,6 +314,90 @@ export function drawAnorectum(ctx: CanvasRenderingContext2D, S: (p: P) => Pt, sc
   const note = S([vergeHalf + 1.2, -0.9]);
   if (sc > 14) label(ctx, `GAP ×${GAP_MAGNIFY}`, note[0], note[1], { size: 9, color: TEXT.secondary, ls: 0.14, alpha: 0.7 });
   return labels;
+}
+
+/**
+ * The toilet in the same coronal section: the seat ring under the buttocks, the slit its bumpers
+ * leave over the rim (its height the seat leak over the opening's perimeter), the bowl of vitreous
+ * china down to the water, its air lit by the engine's bowl pressure, the water over the trap.
+ * Faded in by `seated` (the toggle's ramp); its labels go through `put`, like the anatomy's.
+ */
+function drawToilet(
+  ctx: CanvasRenderingContext2D,
+  S: (p: P) => Pt,
+  line: (pts: P[], color: string, width: number, alpha?: number, hot?: boolean) => void,
+  put: (text: string, p: Pt, color: string, key?: boolean) => void,
+  putLeft: (text: string, p: Pt, color: string, key?: boolean) => void,
+  tele: CreatureTelemetry,
+  live: boolean,
+  st: AnorectumState,
+  seatTop: number,
+  seated: number,
+): void {
+  const leak = tele.params.seat ?? 51;
+  const slit = Math.max(0.05, leak / SEAT_PERIMETER);
+  const seatBottom = seatTop - SEAT_THICK;
+  const rim = seatBottom - slit;
+  const water = rim - BOWL_DEPTH;
+  const floor = water - 9;
+  const a = seated;
+  for (const s of [-1, 1]) {
+    // the seat ring in section: a rounded bar from the opening's edge to its outer edge
+    const seat: P[] = soft([[s * SEAT_IN, seatTop + 0.1], [s * (SEAT_OUT - 0.4), seatTop], [s * SEAT_OUT, seatTop - SEAT_THICK * 0.6], [s * (SEAT_OUT - 0.6), seatBottom], [s * (SEAT_IN + 0.5), seatBottom], [s * SEAT_IN, seatTop - SEAT_THICK * 0.5], [s * SEAT_IN, seatTop + 0.1]], 1);
+    line(seat, V.blueMid, 1.2, 0.9 * a);
+    // a bumper holding it off the rim
+    line([[s * (SEAT_OUT - 3.4), seatBottom], [s * (SEAT_OUT - 3.4), rim], [s * (SEAT_OUT - 2.2), rim], [s * (SEAT_OUT - 2.2), seatBottom]], V.blueDim, 1, 0.8 * a);
+    // the bowl: the rolled rim (its flushing channel inside), the glazed inner wall down past the
+    // water into the sump, the outer wall down to the foot
+    const rimShape: P[] = soft([[s * SEAT_IN, rim], [s * (SEAT_OUT - 0.6), rim], [s * (SEAT_OUT - 0.2), rim - 1.6], [s * (SEAT_OUT - 1.4), rim - 3.4], [s * (SEAT_IN + 1.2), rim - 3.2]], 1);
+    line(rimShape, V.blue, 1.3, a, true);
+    const innerWall: P[] = soft([[s * SEAT_IN, rim], [s * (SEAT_IN + 0.3), rim - 4], [s * (WATER_HALF + 0.2), water + 3], [s * WATER_HALF, water], [s * (WATER_HALF - 1.6), water - 3.5], [s * 4.5, water - 6], [s * 2.6, water - 6.4]]);
+    line(innerWall, V.blue, 1.4, a, true);
+    line(soft([[s * (SEAT_OUT - 1.4), rim - 3.4], [s * (SEAT_OUT - 2.4), water + 2], [s * (WATER_HALF + 1.6), water - 5], [s * 9, floor + 0.6], [s * 11.5, floor]]), V.blue, 1.2, 0.85 * a);
+    // the trapway's mouth, under water
+    line([[s * 2.6, water - 6.4], [s * 2.6, floor]], V.blueMid, 1, 0.8 * a);
+  }
+  line([[-16, floor], [16, floor]], V.blueDim, 1, 0.7 * a);
+  // the water, and the water seal below it (hatched)
+  line([[-WATER_HALF, water], [WATER_HALF, water]], V.blueMid, 1.3, a, true);
+  for (let k = 1; k <= 5; k++) {
+    const y = water - k * 1.2;
+    const half = WATER_HALF - (WATER_HALF - 2.6) * Math.min(1, k / 5);
+    line([[-half + 0.4, y], [half - 0.4, y]], V.blueDim, 1, 0.45 * a);
+  }
+  // the bowl's air, lit by the engine's bowl pressure (one level: below its first standing wave
+  // the air pulses as one)
+  const br = arr(tele.tubes.bowl?.rms);
+  const rmsBowl = br.length ? Math.sqrt(br.reduce((q, v) => q + v * v, 0) / br.length) : 0;
+  const lv = live ? Math.pow(pressureLevel(rmsBowl * 0.6), 0.85) : 0;
+  for (let k = 0; k < 9; k++) {
+    const y = rim - 1 - ((k + 0.5) / 9) * (BOWL_DEPTH - 2);
+    const half = WATER_HALF - 0.6;
+    const [p0, p1] = [S([-half, y]), S([half, y])];
+    seg(ctx, p0[0], p0[1], p1[0], p1[1], live ? heat(lv) : V.blueDim, 1, { alpha: a * (live ? 0.3 + 0.7 * lv : 0.35) });
+  }
+  // the seat leak: the slit over the rim, the air in it lit like the bowl's, and puffs leaving
+  // through it while gas flows
+  const flow = Math.max(0, live ? (tele.source.flow ?? 0) : 0);
+  for (const s of [-1, 1]) {
+    const [p0, p1] = [S([s * SEAT_IN, rim + slit / 2]), S([s * SEAT_OUT, rim + slit / 2])];
+    seg(ctx, p0[0], p0[1], p1[0], p1[1], live ? heat(lv) : V.blueDim, 1, { alpha: a * (live ? 0.4 + 0.6 * lv : 0.4) });
+    if (flow > 2) {
+      for (let i = 0; i < 4; i++) {
+        const u = (st.phase * 2 + i / 4) % 1;
+        const [x, y] = S([s * (SEAT_IN + u * (SEAT_OUT + 1.5 - SEAT_IN)), rim + slit / 2]);
+        dot(ctx, x, y, 1.2, V.amber, a * (1 - u) * Math.min(1, flow / 200));
+      }
+    }
+  }
+  const keep = (f: (text: string, p: Pt, color: string, key?: boolean) => void, text: string, p: P, color: string, key = false) => {
+    if (a > 0.5) f(text, S(p), color, key);
+  };
+  keep(put, `TOILET BOWL · ${BOWL_AIR_L.toFixed(1)} L AIR`, [3.2, rim - 5], V.amber, true);
+  keep(put, `SEAT LEAK ${leak.toFixed(0)} CM²`, [SEAT_OUT + 0.4, rim - 0.6], V.amber, true);
+  keep(putLeft, "SEAT", [-SEAT_OUT - 0.4, seatTop - 1.2], TEXT.secondary);
+  keep(put, "WATER", [3.2, water + 0.5], TEXT.secondary);
+  keep(putLeft, "VITREOUS CHINA", [-SEAT_OUT + 0.4, water - 1], TEXT.secondary);
 }
 
 function arr(a: Float32Array | number[] | undefined): number[] {

@@ -89,10 +89,13 @@ function Params({ def }: { def: CreatureDef }) {
   // while a call plays, the encoders follow its automation; afterwards they return to yours
   const calling = !!live?.call;
   const pages: EncoderPage[] = [];
-  for (let i = 0; i < def.params.length; i += 4) {
+  // on/off controls (the flatulence creature's toilet) are switches under the encoders
+  const dials = def.params.filter((p) => !p.toggle);
+  const switches = def.params.filter((p) => p.toggle);
+  for (let i = 0; i < dials.length; i += 4) {
     pages.push({
       name: String(pages.length + 1),
-      encoders: def.params.slice(i, i + 4).map((p) => {
+      encoders: dials.slice(i, i + 4).map((p) => {
         const mine = cparams?.[p.key] ?? p.default;
         return { label: p.label, value: calling ? (live!.params[p.key] ?? mine) : mine, min: p.min, max: p.max, log: p.log, onChange: (v: number) => setCParam(p.key, v), format: (v: number) => fmt(v, p) };
       }),
@@ -102,7 +105,22 @@ function Params({ def }: { def: CreatureDef }) {
     <>
       {/* a sentence, too long for the header: it wraps here instead of being cut off there */}
       {def.role && <p className="cparams-role">{def.role}</p>}
-      <EncoderPages key={def.id} label={`${def.name} controls`} pages={pages} />
+      <EncoderPages
+        key={def.id}
+        label={`${def.name} controls`}
+        pages={pages}
+        footer={
+          switches.length > 0 &&
+          switches.map((p) => {
+            const on = (cparams?.[p.key] ?? p.default) >= 0.5;
+            return (
+              <Chip key={p.key} on={on} title={`${p.label}: ${on ? "on" : "off"}`} onClick={() => setCParam(p.key, on ? p.min : p.max)}>
+                {p.label}
+              </Chip>
+            );
+          })
+        }
+      />
     </>
   );
 }

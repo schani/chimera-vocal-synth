@@ -6,7 +6,7 @@ import type { CreatureDef } from "../../wasm/types.ts";
 import { liveTelemetry, previewTelemetry, type CreatureFeed } from "../creatureLive.ts";
 import { TEXT, V, SLOTS, heat, pressureLevel } from "../colors.ts";
 import { beamPts, dot, hfont, label, labelWidth, ring, seg, wrapLabel, type Pt } from "../render/vector.ts";
-import { drawAnorectum, newAnorectumState } from "../render/anorectum.ts";
+import { anorectumView, drawAnorectum, newAnorectumState } from "../render/anorectum.ts";
 
 type P = [number, number];
 
@@ -109,10 +109,12 @@ export function CreatureView(props: { feed?: CreatureFeed }) {
     // a narrow screen (a phone) stacks the title and status, and puts the readouts two by two
     const compact = w < 560;
     const top = compact ? 96 : 64, slotH = compact ? 132 : Math.min(118, h * 0.2);
-    const vw = vis.view.x1 - vis.view.x0, vh = vis.view.y1 - vis.view.y0;
+    // the flatulence cutaway widens to take in the toilet as the creature sits down
+    const box = def.id === "flatulence" ? anorectumView(vis.view, tele) : vis.view;
+    const vw = box.x1 - box.x0, vh = box.y1 - box.y0;
     const sc = Math.min((w * 0.86) / vw, ((h - top - slotH) * 0.9) / vh);
-    const ox = w / 2 - ((vis.view.x0 + vis.view.x1) / 2) * sc;
-    const oy = top + (h - top - slotH) / 2 + ((vis.view.y0 + vis.view.y1) / 2) * sc;
+    const ox = w / 2 - ((box.x0 + box.x1) / 2) * sc;
+    const oy = top + (h - top - slotH) / 2 + ((box.y0 + box.y1) / 2) * sc;
     const S = ([x, y]: P): Pt => [ox + x * sc, oy - y * sc];
 
     const labels: { text: string; x: number; y: number; color: string }[] = [];
