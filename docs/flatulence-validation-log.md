@@ -274,3 +274,39 @@ lower), 2.8 kHz band 0.17 (real less).
 - Leads, not tried: the external sphincter's slower (type I) activation constants; the closure as
   a collapsible tube (pressure along it, Bernoulli suction in the gap) instead of two lumped
   valves; a room for the reverberant recordings.
+
+## 10. On the toilet: the recordings refitted with the bowl (not kept as a fit; the model keeps the switch)
+
+- Physical basis: the toilet (docs/flatulence.md, "The toilet"): the cleft opens into a 6 L bowl
+  that reaches the room through the seat leak, a Helmholtz resonator at 192 Hz for the default
+  leak (51 cm², the seat bumpers' slit). Three recordings say or tag a toilet: Bathroom Fart
+  (fs854139, "real fart on the toilet"), Fart.wav (fs135716, tagged toilet) and Liquid Destiny
+  (fs456558, a pub toilet, room reverberation; whether seated is not said).
+- Change: none to the model. A library (1490 renders, the default grid) and one search of every
+  event with the courses (`FLATUS_EXTRA="toilet=1" … fit.py … courses=1 scale=<round 2's>`),
+  against the same model off the toilet (one search, `fitB1`). Then a library and a search of the
+  three recordings' five events with the loosest seat (`toilet=1 seat=200`, Helmholtz 296 Hz).
+- Result: worse everywhere, the toilet recordings included.
+
+  | | Off (one search) | On, seat 51 cm² | On, seat 200 cm² |
+  |---|---|---|---|
+  | All 59 events: median, close (≤ 0.54) | 0.43, 41 | 0.93, 0 | – |
+  | Toilet recordings' 5 events: median, close | 0.50, 4 | 0.75, 0 | 0.72, 0 |
+  | Bathroom Fart (on the toilet) | 0.54 | 0.57 | 0.63 |
+  | Fart.wav, events 0 / 1 / 3 | 0.50 / 0.39 / 0.34 | 0.75 / 0.76 / 0.67 | 0.72 / 0.66 / 0.76 |
+  | Liquid Destiny (pub toilet) | 0.50 | 1.12 | 0.84 |
+
+  Only one of the 59 events fits better on the toilet. The misses (real − model, in spreads,
+  mean over all events, on the toilet): the 5.7 kHz band +2.7 and the 707 Hz band +2.5 (the real
+  sounds keep the high frequencies the bowl takes away), the 177 Hz band −1.1 and the HNR −0.85
+  (the model has the bowl's ringing, the recordings don't), tilt +1.1. For the toilet recordings
+  the same: 5.7 kHz +2.2, 2.8 kHz −1.0.
+- Reading: no recording here sounds like a fart into a closed bowl with only the seat's slit
+  open. Possible reasons, none tested: the microphones were in the room above or beside the seat,
+  where sound radiated by the body and through gaps not modelled (an open-front seat, legs apart,
+  a person leaning forward lifting the buttocks off the ring) passes the high frequencies; the
+  "toilet" tag says where, not that the person sat closed on the seat; and the model's bowl, a 1D
+  tube, is right only below 800 Hz, while its damping (mostly the borrowed soft-tissue wall) sets
+  how strongly it rings. The fit was not given the leak as a free control beyond these two
+  values, and nothing about the toilet was changed to make the recordings fit.
+- Kept: the switch, off by default; the recordings are fitted off the toilet as before.

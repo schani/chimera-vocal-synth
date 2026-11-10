@@ -24,6 +24,18 @@
       "params": { "gas": 300, "spread": 0.3, "push": "0:6,0.3:16", "eas": "0:8,0.3:8,0.33:160" },
       "caption": "Rising push, cut off",
       "hint": "The push builds, then the external sphincter clamps shut on the gas"
+    },
+    {
+      "at": 25.6, "hold": 1.0, "settle": 1.0,
+      "params": { "toilet": 1, "gas": 100, "push": 30, "eas": 20, "spread": 0.2 },
+      "caption": "On the toilet",
+      "hint": "The held default, seated: the bowl rings near 190 Hz and muffles the rest"
+    },
+    {
+      "at": 28.2, "hold": 1.2,
+      "params": { "gas": 300, "eas": 5, "push": 8, "spread": 0.3 },
+      "caption": "Rumble, seated",
+      "hint": "The rumble's controls into the bowl, through the slit under the seat"
     }
   ]
 }

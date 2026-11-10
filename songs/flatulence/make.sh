@@ -1,7 +1,8 @@
 #!/bin/sh
 # Flatulence: a physical model. The Bestiary's flatulence creature plays each of its calls, then
-# three held notes with physical courses (script.json), as a creature show: ?show=flatulence, and
-# public/shows/flatulence-show.tar.gz to hand over. No score, nothing copyrighted.
+# three held notes with physical courses and two seated on the toilet (script.json), as a creature
+# show: ?show=flatulence, and public/shows/flatulence-show.tar.gz to hand over. No score, nothing
+# copyrighted.
 # Usage: songs/flatulence/make.sh [--no-render]
 set -eu
 SONG_PY=0

@@ -54,8 +54,8 @@
 //!   leaks' air the mass. Below its resonance (about 190 Hz at the default leak) the sound passes
 //!   as before, at it the bowl rings, above it the sound is muffled, at 12 dB per octave, up to
 //!   the bowl's own front-to-back mode. The bowl is a short wide tube along its length (its
-//!   slices from a standard elongated bowl and seat), the leaks two radiating slit necks; valid
-//!   below the bowl's first cross mode, about 800 Hz.
+//!   slices from a standard elongated bowl and seat), each slice leaking through its share of
+//!   the slit, all radiating as one opening; valid below the bowl's first cross mode, ~800 Hz.
 
 use super::build::{CMH2O, TubeArea, TubeOpts, sections, tube};
 use super::types::{CallDef, CallKey, CreatureDef, CreatureGroup, CreatureSim, GateTimes, ParamDef};

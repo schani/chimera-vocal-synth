@@ -15,6 +15,10 @@ from physical reasoning, never from listening. The code is
                                     cushions; deep EAS. LipReed)  sphincter,        ischioanal fat:  a baffle)
                                                                   voluntary:        LipReed)
                                                                   LipReed; mucus)
+
+ on the toilet (control "On the toilet"): … gluteal cleft ── bowl (6 L of air: body, china, water) ── seat leak ── air
+                                                            (a wide tube along   (a slit all round
+                                                             the bowl's length)   the seat, radiating)
 ```
 
 The model was then fitted to 59 events of 31 real recordings; the cheeks' valve and the mucus
@@ -205,6 +209,8 @@ because the body surface around the outlet acts as a baffle.
 | Cheek spread | 0–1 | 0.2 | the cleft's opening angle |
 | Body size | 0.6–1.25 | 1 | linear scale on every length |
 | Mucus adhesion (kPa) | 0–3 | 0 | cohesive strength of the liquid between the canal's faces; 0 is dry |
+| On the toilet | off/on | off | seated on a standard elongated toilet: the cleft opens into the bowl (below, "The toilet"); a switch in the Bestiary |
+| Seat leak (cm²) | 5–200 | 51 | the open area between the bowl's air and the room when seated: by default the slit the seat's 1/4 in bumpers leave over the rim |
 
 Body size scales the lengths and thicknesses linearly and the volumes and compliance cubically.
 Per-area stiffness and the pressures don't scale. The push is ramped by the breath gate, with a
@@ -228,6 +234,100 @@ The presets differ only in these controls:
 The internal sphincter's tone is the performer's in every call (default 37). The squeak's push
 was 42 before the two sphincters; at 20 mL the reflex leaves half the internal sphincter's tone,
 which held it shut, so it pushes 50; the slow leak's 4 became 6 for the same reason.
+
+## The toilet
+
+Seated on a toilet, the body closes the seat's opening and the gluteal cleft opens into the bowl
+instead of the room. The switch "On the toilet" (key `toilet`, 0 or 1, default off) puts the
+creature there; off, the creature is exactly as before (bit for bit: the bowl is cut off and the
+cleft's radiation load is the room's). It works the same in calls, holds, the CLI
+(`chimera render creature flatulence out toilet=1`), the fitting renderer and creature-show scripts
+(`"params": {"toilet": 1}`).
+
+**Geometry** (a standard US elongated bowl and seat; the standards themselves, ASME
+A112.19.2/CSA B45.1 and EN 997, are paywalled and were not read):
+
+| | Value | Source |
+|---|---|---|
+| Seat opening (where the body rests and closes the bowl) | 30.0 × 20.5 cm (11-13/16 × 8-1/16 in) | inside length and width of an elongated closed-front seat, Bemis 126CHSLA (retailers' listing; the 7900TDGSL: 11.688 × 8.125 in) |
+| Water surface | 22.9 × 20.3 cm (9 × 8 in) | American Standard Cadet Pro elongated bowl, spec sheet 3517F.101 (certified to ASME A112.19.2-2008); TOTO lists 7-1/8 × 9-1/8 in (Drake II) and 10-1/4 × 8-1/2 in (Drake) |
+| Rim to water | 14 cm (5-1/2 in) | TOTO Drake II (5-1/2 in) and Drake (5-7/8 in), TOTO's figures as quoted by toiletfound.com; no standard sets it; TOTO's own sheets that give it were not found |
+| Bowl shape between them | ellipses whose axes change linearly with depth, rear ends aligned | the rear wall is steep, the front slopes (the elongated part); the alignment is not measured |
+| Air in the bowl | 5.98 L | the slices of that shape (`flatus::bowl_volume`) |
+| Seat height above the rim, tissue sagging into the opening | taken to cancel | the seat ring (a few cm) raises the body; the sag is not measured |
+| Seat–rim slit | 0.635 cm high, 80 cm long (51 cm²) | the seat rests on bumpers, 1/4 in for the common stick-on kind (Danco universal); the slit runs round the opening (its perimeter by Ramanujan's formula) |
+| Slit length along the flow | 5 cm | the overlap of the seat ring (3 in wide at the sides: outer about 14 in, inner 8 in) and the glazed rim under it; not measured |
+| Where the cleft opens | 0.45 of the opening's length from its rear | the seated weight rests on the ischial tuberosities, on the ring's sides about mid-length; the anus lies just behind the line between them (the anal triangle), the genitals in front; not measured |
+| Water seal | 2-1/8 in | TOTO's trap seal; UK approval of EN 997 pans asks at least 50 mm |
+
+**Boundaries.** For airborne sound the vitreous china is rigid: its characteristic impedance
+(ρ ≈ 2.4 g/cm³, c ≈ 5 km/s: 1.2·10⁷ Pa·s/m) is 3·10⁴ times air's, and the 7–10 mm shell's mass
+reactance alone, about 2.4·10⁴ Pa·s/m at 200 Hz, is 60 times air's. The water surface is rigid
+too: water's impedance is 3600 times air's (reflection 0.9994), and moved as a mass (the pool,
+about 7 cm deep, an estimate) it admits under 2 % of what the bowl's air does at 150 Hz. The
+trapway is filled by the water seal, so the drain's air is cut off: the trap plays no part. The
+body over the opening is soft tissue: the engine's measured soft wall (Ishizaka et al. 1975, as in
+the cleft), over the opening's area (488 cm²). The bowl's air reaches the room only through
+leaks: the slit under the seat and whatever the thighs leave open at the seat's front (not
+measured), so their total open area is the control "Seat leak", its default the bumpers' slit.
+
+**Model.** The bowl's air is a tube of ten 3 cm slices along its length (rear to front), each of
+its slice's area; its top is the soft wall, its viscous loss uses each slice's whole perimeter.
+The cleft's mouth opens into the slice under the anus through its own near-field mass (the
+flanged piston's end correction, the same mass the room's radiation load gives it). Each slice
+leaks through its share of the seat opening's perimeter (the ellipse's arcs over it) into one
+radiating outlet: the seat (30 cm) is small against the wavelength at the bowl's resonance (1.8 m
+at 190 Hz), so the leaks radiate in phase and load each other, as one baffled opening of their
+total area. The slit's mass is its length plus two end corrections, δ = (h/π)(3/2 − γ − ln(kh/2))
+for a strip of height h in a baffle (from the two-dimensional Green's function at small kh,
+evaluated at 200 Hz: 1.1 cm for the default slit); its loss is that of oscillating flow between
+two plates (the real part of jωρℓ/A / (1 − tanh(s)/s), s = (1 + j)h/2δ, at 200 Hz): for the
+default 6.4 mm slit against a 0.16 mm boundary layer, the boundary layer's loss on its two faces,
+seven times Poiseuille's; for the smallest leak's 0.6 mm, close to Poiseuille's.
+No turbulence is added in the bowl or the slit: the default event's peak flow, 1.2 L/s, crosses
+the 51 cm² slit at 25 cm/s (Reynolds number about 100 on the slit's height).
+
+So the bowl is a Helmholtz resonator: its air the spring, the leaks' air the mass,
+f = c/2π·√(A/(V·(ℓ + 2δ))) = 192 Hz at the default leak (`flatus::toilet_helmholtz`). Below it
+the sound passes as before (all the gas's flow must leave through the leaks); at it the bowl
+rings; above it the leaks' mass passes less and less, 12 dB per octave, until the bowl's own
+standing waves. **The 1D tube is valid below the bowl's first cross mode**, about 800 Hz (the
+20 cm width; the 14 cm depth, body to water, about 1.25 kHz): it has the Helmholtz mode and the
+first front-to-back modes; the many cross and depth modes of a real bowl above 800 Hz are not
+represented (its second length mode, near 1.4 kHz, stands for them only in kind). A lumped
+compliance would have been valid only below the first length mode (~600 Hz) and has no modes at
+all.
+
+**Cheek spread.** Sitting flexes the hips, which stretches the buttocks over the ischial
+tuberosities and tends to part them, but no measurement of the seated cleft's angle was found,
+and a seated person can still press the cheeks together. So the toilet neither fixes nor limits
+the spread control. Contact of the cheeks with the seat (which would press and couple them) is not
+modelled.
+
+**Submerged?** No: on a toilet the anus is 14 cm or more above the water, so the gas never
+sounds through water, and the trapped gas's bubble acoustics (Minnaert) is not needed.
+
+**The switch.** Sitting down is not modelled. The cleft's outlet is handed from the room to the
+bowl over 0.25 s (its radiation load fading while the opening into the bowl grows, both ramped
+sample by sample); the intermediate states are a crossfade of the two boundaries, not a body part
+way down. Switched mid-sound it doesn't click (a test checks the energy above 5 kHz around both
+switches).
+
+**Predicted** (the linearised network, `cargo run --release -p chimera --example flatus_toilet`:
+a flow injected at the cleft, the cheeks' valve cut, to the radiated flow):
+
+| Seat leak (cm²) | Helmholtz, lumped estimate | Network's peak (bandwidth) | On re off at 100 / 200 / 500 / 1000 / 2000 Hz (dB) |
+|---|---|---|---|
+| 5 | 70 Hz | none (the 0.6 mm slit's viscosity damps it) | −6 / −18 / −33 / −40 / −48 |
+| 20 | 131 Hz | 133 Hz (23 Hz) | +7 / −2 / −22 / −29 / −37 |
+| 51 (default) | 192 Hz | 192 Hz (17 Hz) | +3 / +18 / −14 / −23 / −30 |
+| 100 | 244 Hz | 241 Hz (24 Hz) | +2 / +10 / −9 / −18 / −25 |
+| 200 | 302 Hz | 296 Hz (46 Hz) | +1 / +5 / −4 / −14 / −26 |
+
+With the default leak the network also has an antiresonance near 840 Hz (the first length mode,
+whose pressure node is near the anus) and a narrow peak near 1.4 kHz (the second, beyond the
+model's validity). The resonance's damping: the body's soft surface (the largest share), the
+slit's boundary layer, and radiation.
 
 ## Parameters and sources
 
@@ -333,6 +433,44 @@ them. "Validation against recordings" below compares them with real flatus.
 | 20 | 17 | 1.47 s | −34.9 | 79 Hz (34 %) | 78 Hz |
 | 40 | 31 | 0.91 s | −28.6 | 166 Hz (94 %) | 104 Hz |
 | 80 | 71 | 0.36 s | −15.6 | 179 Hz (55 %) | 140 Hz |
+
+**On the toilet** (default seat leak, 51 cm²; `flatus_toilet render`: the held voice and each
+call from a fresh voice, off and on, measured as above at the voice's level 0.1, so the limiter's
+knee is never reached, with the 20 dB added back; "ring" is the distal ring's gap tracked sample by
+sample, the sphincter's own oscillation apart from what the bowl does to the sound):
+
+| | Duration off → on | Level (dBFS) | f0 of the sound (periodic) | f0 of the ring (periodic) | Centroid (Hz) |
+|---|---|---|---|---|---|
+| Held, defaults | 0.23 → 0.26 s | −19.0 → −13.0 | 244 (5 %) → 181 (88 %) | 167 (60 %) → 176 (78 %) | 1505 → 197 |
+| Squeak | 0.15 → 0.25 s | −18.8 → −27.2 | – → 468 (76 %, 156–1429) | 279 (75 %) → 281 (71 %) | 1644 → 720 |
+| Rumble | 0.49 → 0.35 s | −18.4 → −12.1 | 123 (20 %) → 123 (77 %, 105–203) | 122 (67 %) → 119 (62 %) | 1149 → 219 |
+| Staccato | 1.42 → 1.42 s | −23.2 → −18.5 | – → 192 (86 %) | 158 (32 %) → 143 (29 %) | 1647 → 227 |
+| Clench | 0.51 → 0.52 s | −17.8 → −13.9 | 76 (17 %) → 124 (56 %) | 77 (79 %) → 78 (78 %) | 1019 → 227 |
+| Quiver | 1.11 → 1.13 s | −24.8 → −25.6 | 114 (6 %) → 117 (48 %) | 124 (57 %) → 125 (54 %) | 1854 → 599 |
+| Slow leak | 1.09 → 1.00 s | −26.1 → −35.4 | 67 (59 %) → 127 (67 %) | 66 (80 %) → 127 (90 %) | 2326 → 2186 |
+
+The spectra, on against off (sixths of an octave, each call's span): the largest gain is at
+179–200 Hz in six of the seven (predicted 192 Hz), +14 to +21 dB; averaged over the seven,
++1 / +14 / −15 / −23 / −23 dB at 100 / 200 / 500 / 1000 / 2000 Hz, against the prediction's
++3 / +18 / −14 / −23 / −30 (the peak is narrower than a sixth of an octave, so the average
+flattens it). Every render on the toilet has a spectral peak at 1360 Hz, the 1D tube's second
+length mode (predicted 1406 Hz), outside the model's validity (above).
+
+- **The toilet makes it a booming, muffled sound.** The bowl rings at its Helmholtz frequency
+  and passes little above it: the centroid falls from 1–2 kHz to about 200 Hz, and the events
+  with energy near 190 Hz get 4–8 dB louder (the held voice, rumble, staccato, clench); the
+  squeak, whose tone (280 Hz) is above the resonance, gets 8 dB quieter.
+- **The pitch you hear is mostly the bowl's.** The sound's f0 moves to 180–195 Hz and turns
+  periodic (50–88 % of frames), because the bowl filters whatever reaches it into its ringing. The
+  sphincter itself is not pulled in five of the seven: the ring's own f0 stays within 5 % (167 →
+  176, 279 → 281, 122 → 119, 77 → 78, 124 → 125 Hz). The bowl's impedance reaches the ring
+  through the cheeks' valve, the margin and the cleft, and the valve is a high-impedance source.
+- **Where the cheeks are spread, the bowl does pull it.** In the slow leak (spread 1, the cleft
+  wide open) the ring jumps from 66 Hz to 127 Hz and turns cleaner (80 → 90 % periodic), and the
+  staccato's irregular ring (about 30 % periodic) moves from 158 to 143 Hz. Neither lands on the
+  Helmholtz frequency; the coupled system (bowl, cleft, margin, ring) picks another regime.
+- **Duration** hardly changes (the gas leaves at the same rate; the bowl's ring-down is
+  Q/πf ≈ 20 ms); the 30 dB span shortens where the peak gets louder.
 
 How the sound follows the physics:
 
@@ -570,6 +708,16 @@ funny fart (0.58) and Wet fart tummy rumbles (0.55; 0.54 in round 1). By the fea
   consistent across events; recording chains (phones, small microphones) may share in it.
 
 
+**On the toilet.** Three recordings say or tag a toilet (Bathroom Fart, "real fart on the
+toilet"; Fart.wav, tagged toilet; Liquid Destiny, in a pub toilet). Refitted with the toilet on
+(a toilet library, one search with courses), every event fits worse, those three included:
+median 0.43 → 0.93 over the 59 events, close 41 → 0; the toilet recordings' five events 0.50 →
+0.75 (Bathroom Fart 0.54 → 0.57), and with the loosest seat (200 cm², resonance 296 Hz) 0.72.
+The misses are the bowl's own signature: the real sounds keep far more above 700 Hz (5.7 kHz
+band +2.7 spreads) and have less of the ring at 177 Hz and less of its harmonicity. So the toilet
+stays a switch, off by default, and the validation above is off the toilet; nothing in the
+toilet was changed to fit. Details in the log's experiment 10.
+
 ## Limits
 
 - **No peer-reviewed acoustic data.** The validation above uses freely licensed recordings of
@@ -629,5 +777,21 @@ funny fart (0.58) and Wet fart tummy rumbles (0.55; 0.54 in round 1). By the fea
 - **Cheek spread changes no flow.** The network's moving-wall volume source is off for this
   creature, because the pocket's wall motion enters as flow. Cheek spread and body size therefore
   change the cleft and canal without pushing air (they change slowly).
+- **The toilet is one standard bowl, from manufacturers' sheets.** The rim-to-water depth comes
+  from a secondary source; the water's position under the opening, the slit's length under the
+  seat, the anus's place over the bowl, and how the seat's height and the tissue's sag into the
+  opening compare are not measured. The seat leak is a control because the gaps between the thighs
+  and the seat are not measured either; its default is the bumpers' slit alone. The bowl is a 1D
+  tube along its length: valid below about 800 Hz; the real bowl's cross and depth modes above
+  are missing, and its second length mode (1.4 kHz) stands for them only in kind. The leaks
+  radiate as one opening, right while the seat is small against the wavelength (below about
+  1 kHz). The body's surface over the opening is the cheek's measured soft wall (Ishizaka), not a
+  measurement of the buttocks; it sets most of the resonance's damping. Thermal losses at the
+  china are left out (viscous ones are in). The room the toilet stands in is not modelled.
+- **No recording sounds like the toilet model.** With the toilet on, every recording fits
+  worse, the three that say or tag a toilet included (Bathroom Fart 0.54 → 0.57; below,
+  "Validation against recordings", and the log's experiment 10). The model's seated sound (a
+  ring near 190 Hz, little above 1 kHz) is not what these microphones picked up; why is not
+  known (where the microphones were, open-front seats, posture, the 1D bowl's limits).
 - **The wasm build is not checked bit for bit.** Native/wasm bit-identity is tested for the voice
   scenarios only, not for this creature. The e2e test plays it through the worklet.
