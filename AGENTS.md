@@ -18,9 +18,11 @@ and the CLI) under a React UI. See the README.
 
 - `crates/chimera/`: the engine (no I/O). Lyrics → syllables go through language front ends
   (`phonetics/syllables.rs` routes; english, korean, mandarin; docs/language-front-ends.md). `crates/chimera-wasm/`: the browser's C ABI.
-  `crates/chimera-cli/`: `chimera render | compare csd | compare tsp | diagnose | calibrate`.
+  `crates/chimera-cli/`: `chimera render | compare csd | compare tsp | diagnose | calibrate`
+  (`render notes --tele` and `render creature-show --tele` record what a show replays).
 - `src/wasm/`: the UI's facade over the engine. `src/worklet/`: the AudioWorklet. `src/ui/`: React
-  and the canvas renderers.
+  and the canvas renderers. `src/show/`: shows (`?show=<id>`, DuetPage.tsx): voices' `.tele` on 3D
+  heads, or a creature's `.ctele` in its Bestiary drawing (CreatureShow.tsx); `songs/` makes them.
 - `tests/`: bun tests on the wasm build. `tools/`: e2e, layout lint, spectrogram, speech judges, the scramble test (`tools/asr/scramble.py`), duet video export
   (`asr/` Whisper, `tsp/` the real speakers' data).
 - `docs/`: architecture, the engine contract (`rust-engine.md`), the UI look, the singer and

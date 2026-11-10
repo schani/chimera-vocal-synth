@@ -9,6 +9,12 @@ are gitignored.
 | `songs/ave-maria/make.sh` | `ave-maria-de`, `ave-maria-de-trio`, `ave-maria-voices`, `ave-maria-six` | 6 × 6-7 min |
 | `songs/bleak-midwinter/make.sh` | `bleak-midwinter` | 12 × 5 min |
 | `songs/thunderstruck/make.sh <your.mxl>` | `thunderstruck-score`, `thunderstruck-electric` | 7 × 4 min |
+| `songs/flatulence/make.sh` | `flatulence` (a creature show), and `public/shows/flatulence-show.tar.gz` | one creature, 26 s (renders in 2 s) |
+
+`flatulence` is not a song: the Bestiary's flatulence creature plays each of its calls and three
+held notes with physical courses (`songs/flatulence/script.json`, rendered by `chimera render
+creature-show`; the script's format is in `crates/chimera-cli/src/creature_show.rs`), replayed in
+its anatomical cutaway with the waterfall and the unrolled airway. It needs only Rust.
 
 A voice renders at roughly 1-2× its length on one CPU core, and the voices render in parallel, one
 per core (`JOBS=n` to change): on 8 cores Ave Maria takes 6-12 min, Bleak Midwinter 10-20,

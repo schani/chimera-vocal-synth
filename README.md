@@ -18,7 +18,8 @@ for tests and the `chimera` CLI.
 - **Bestiary**: songbird (two-voice syrinx), seal, alligator, elephant, and flatulence (the anal
   canal's two closures, internal and external sphincter, as lip reeds driven by the rectal gas;
   [docs/flatulence.md](docs/flatulence.md)).
-- **Duet** (`?show=<id>`): two 3D heads replay a pre-rendered song.
+- **Duet** (`?show=<id>`): two 3D heads replay a pre-rendered song; a creature show replays a
+  Bestiary creature's scripted calls in its own drawing (`songs/flatulence/make.sh`).
 
 Male, female and child bodies blend continuously. Everything on screen animates from live
 engine state: pressure in the airway, airflow, the vocal folds, spectra and formants.
@@ -39,14 +40,14 @@ The AudioWorklet needs a secure context, so open it on localhost or over HTTPS (
 Offline renders and measurement:
 
 ```sh
-cargo run --release -p chimera-cli -- render speech|text|song|notes|beatbox|creature|vowels …
+cargo run --release -p chimera-cli -- render speech|text|song|notes|beatbox|creature|creature-show|vowels …
 cargo run --release -p chimera-cli -- diagnose       # nasal leakage, formants, bandwidths, pitch
 cargo run --release -p chimera-cli -- compare csd    # against a real singer (docs/csd-comparison.md)
 cargo run --release -p chimera-cli -- compare tsp    # against 23 real speakers (docs/speech-comparison.md)
 cargo run --release -p chimera-cli -- throat solve|render|song …  # khöömei, sygyt, kargyraa (docs/throat-singing.md)
 bun tools/spectrogram.ts in.wav out.png
 bun tools/musicxml-to-notes.ts score.mxl P1 --out p1.json   # a score's part → `render notes` melody
-bun tools/duet-video.ts <show-id> out.mp4         # a duet show as video, frame-exact (needs bun run preview)
+bun tools/duet-video.ts <show-id> out.mp4         # a duet or creature show as video, frame-exact (needs bun run preview)
 ```
 
 ## Docs

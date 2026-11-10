@@ -1,5 +1,6 @@
 # Sourced by songs/*/make.sh (after `set -eu`). Sets HERE (the song's folder), ROOT (the repo), OUT,
-# PY, CHIMERA, NPROC, RENDER (0 with --no-render) and the helpers below.
+# PY, CHIMERA, NPROC, RENDER (0 with --no-render) and the helpers below. Set SONG_PY=0 first if the
+# song needs no Python.
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 OUT=$HERE/out
@@ -16,9 +17,11 @@ need() {  # need <command> <hint>
   command -v "$1" >/dev/null 2>&1 || { echo "missing: $1 ($2)" >&2; exit 1; }
 }
 
-need "$PY" "python3, or set PYTHON"
-"$PY" -c "import numpy, scipy, mido, music21" 2>/dev/null ||
-  { echo "missing python packages: $PY -m pip install -r songs/requirements.txt" >&2; exit 1; }
+if [ "${SONG_PY:-1}" = 1 ]; then  # a song without Python (SONG_PY=0 before sourcing) skips this
+  need "$PY" "python3, or set PYTHON"
+  "$PY" -c "import numpy, scipy, mido, music21" 2>/dev/null ||
+    { echo "missing python packages: $PY -m pip install -r songs/requirements.txt" >&2; exit 1; }
+fi
 need cargo "Rust: https://rustup.rs"
 (cd "$ROOT" && cargo build --release -q -p chimera-cli)
 
