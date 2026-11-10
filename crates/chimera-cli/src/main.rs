@@ -24,7 +24,7 @@ usage: chimera <command> [args] [--float]
   render notes   <in.json> <out> [male|female|child] [--artic tracks.json] [--tele voice.tele]
                  (melody file; midi <= 0 is a rest; --artic also writes the articulators at 100 Hz)
   render beatbox [outdir] [preset name | pattern] [male|female|child] [bpm] [bars]
-  render creature [creatureId] [outdir] [param=value …] [hold=<s>] [calls=none]
+  render creature [creatureId] [outdir] [param=value | param=t:v,t:v… …] [hold=<s>] [calls=none]
   render vowels  [male|female|child] [out]
   syllables      \"lyrics\"    (what the language front ends sing: one JSON syllable per note)
   diagnose       [outdir]
