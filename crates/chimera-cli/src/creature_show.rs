@@ -438,6 +438,27 @@ mod tests {
         assert!(a.iter().all(|x| x.is_finite()) && peak(&a) > 0.05);
     }
 
+    /// The toilet is a control like the others: a script sits the creature down (from the start, or
+    /// in a hold), and the telemetry carries the bowl and the handover for the show's drawing.
+    #[test]
+    fn creature_show_scripts_seat_the_creature_on_the_toilet() {
+        let text = r#"{"creature": "flatulence", "tail": 0.1, "events": [
+            {"at": 0.05, "hold": 0.3, "settle": 0.8, "params": {"toilet": 1, "seat": 80}, "caption": "On the toilet"}]}"#;
+        let s = Script::parse(text).unwrap();
+        let (out, rec) = render_script(&s, true).unwrap();
+        let (meta, frames) = read(&rec.unwrap().bytes());
+        let names = |k: &str| meta[k].as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect::<Vec<_>>();
+        let sources = names("sources");
+        let toilet = sources.iter().position(|k| k == "toilet").expect("the toilet's handover in the telemetry");
+        let tubes: Vec<String> = meta["tubes"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap().into()).collect();
+        assert!(tubes.iter().any(|t| t == "bowl"), "the bowl in the telemetry: {tubes:?}");
+        let last = frames.last().unwrap();
+        let at = last.len() - sources.len() + toilet;
+        assert!(last[at] > 0.95, "seated by the end: {}", last[at]);
+        assert!(frames[0][last.len() - sources.len() + toilet] == 0.0, "standing at the start");
+        assert!(out.iter().all(|x| x.is_finite()) && peak(&out) > 0.05);
+    }
+
     #[test]
     fn creature_show_scripts_refuse_overlaps_and_unknown_names() {
         let p = |t: &str| Script::parse(t).err().unwrap_or_default();

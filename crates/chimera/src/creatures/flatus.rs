@@ -46,12 +46,22 @@
 //!   traction–separation law), so each opening starts late and all at once.
 //! - **Radiation.** Through the gluteal cleft, a soft-walled wedge-shaped slot whose gap follows
 //!   the cheek spread, into a baffled radiation load (the body surface around it).
+//! - **The toilet (control, off by default).** Seated on a toilet, the cleft opens into the bowl
+//!   instead of the room: about 6 L of air between the body (which closes the seat opening), the
+//!   vitreous china and the water, both near-rigid for airborne sound. The bowl reaches the room
+//!   only through the leaks around the seat (the slit the seat's bumpers leave over the rim, and
+//!   any gap between the thighs), so it is a Helmholtz resonator: the bowl's air the spring, the
+//!   leaks' air the mass. Below its resonance (about 190 Hz at the default leak) the sound passes
+//!   as before, at it the bowl rings, above it the sound is muffled, at 12 dB per octave, up to
+//!   the bowl's own front-to-back mode. The bowl is a short wide tube along its length (its
+//!   slices from a standard elongated bowl and seat), the leaks two radiating slit necks; valid
+//!   below the bowl's first cross mode, about 800 Hz.
 
 use super::build::{CMH2O, TubeArea, TubeOpts, sections, tube};
 use super::types::{CallDef, CallKey, CreatureDef, CreatureGroup, CreatureSim, GateTimes, ParamDef};
 use crate::airway::network::{AirwayNetwork, NoiseSpec, PortSpec, Tube};
-use crate::math::{PI, cbrt, exp, js_max, js_min, ln, sqrt, tan};
-use crate::physics::WALL_SOFT;
+use crate::math::{PI, cbrt, exp, js_max, js_min, js_round, ln, sqrt, tan};
+use crate::physics::{C_SOUND, MU, RHO, WALL_SOFT};
 use crate::sources::valves::LipReed;
 
 // parameter indices (order of `def().params`)
@@ -62,6 +72,8 @@ const GAS: usize = 3;
 const SPREAD: usize = 4;
 const SIZE: usize = 5;
 const MUCUS: usize = 6;
+const TOILET: usize = 7;
+const SEAT: usize = 8;
 
 /// Smallest and largest body scale (linear, 1 = adult). The tubes get their section counts at the
 /// smallest, so every size keeps the FDTD's stability limit.
@@ -295,6 +307,178 @@ const CONSTRICTION_NOISE: (f64, f64, f64) = (1.364e-6, 2600.0, 350.0);
 /// (`1 − smoothstep(0.35, 0.9, area)` at body scale 1).
 const CONSTRICTION_FADE: (f64, f64) = (0.35, 0.9);
 
+// ---------------------------------------------------------------- the toilet
+//
+// Seated, the body closes the seat's opening and the cleft opens into the bowl. Geometry of a
+// standard US elongated bowl and seat (manufacturers' specification sheets; the standards
+// themselves, ASME A112.19.2/CSA B45.1 and EN 997, are paywalled and were not read). The toilet
+// does not scale with body size.
+
+/// The seat opening (cm), whose edge the seated body rests on and closes: inside length 11-13/16
+/// in and inside width 8-1/16 in of an elongated closed-front seat (Bemis 126CHSLA, as its
+/// retailers list it; the 7900TDGSL lists 11.688 × 8.125 in). The bowl's rim opening under it is
+/// at least as large; the little air under the seat ring's inner overhang is left out.
+const SEAT_OPEN_LEN: f64 = 30.0;
+const SEAT_OPEN_W: f64 = 20.5;
+/// The water surface (cm): 9 × 8 in on the American Standard Cadet Pro elongated bowl (spec sheet
+/// 3517F.101, certified to ASME A112.19.2-2008/CSA B45.1); TOTO lists 7-1/8 × 9-1/8 in for the
+/// Drake II and 10-1/4 × 8-1/2 in for the Drake. The bowl's rear wall is steep and its front
+/// slopes (the elongated part), so the water lies under the opening's rear: the two ellipses are
+/// taken with their rear ends aligned (not measured).
+const WATER_LEN: f64 = 22.9;
+const WATER_W: f64 = 20.3;
+/// From the rim down to the water (cm): 5-1/2 in on TOTO's Drake II, 5-7/8 in on the Drake (TOTO's
+/// figures as quoted by toiletfound.com; no standard sets it, and TOTO's own sheets that give it
+/// were not found). The seat ring holds the body a few cm above the rim and the soft tissue sags
+/// into the opening by an amount not measured; the two are taken to cancel, so the air column
+/// runs from the rim's level to the water.
+const BOWL_DEPTH: f64 = 14.0;
+/// The walls. Vitreous china (ρ ≈ 2.4 g/cm³, c ≈ 5 km/s: about 1.2·10⁷ Pa·s/m, 3·10⁴ times air's
+/// 415) and a shell 7–10 mm thick, whose mass reactance alone (ωm ≈ 2.4·10⁴ Pa·s/m at 200 Hz) is
+/// 60 times air's: rigid. The water surface: water's impedance is 1.48·10⁶ Pa·s/m, 3600 times
+/// air's (reflection 0.9994). Moved as a mass, the pool (about 7 cm of water) admits under 2 %
+/// of what the bowl's air does at 150 Hz: rigid. The trapway behind it is sealed by water (TOTO's
+/// trap seal 2-1/8 in; UK approval of EN 997 pans asks at least 50 mm), so the drain's air is cut
+/// off and the trapway plays no part. The body over the opening is soft tissue: the engine's
+/// measured soft wall (Ishizaka et al. 1975), over the opening's area only.
+///
+/// The leaks. The seat rests on bumpers, 1/4 in (6.35 mm) for the common stick-on kind (Danco
+/// universal bumpers), so between its underside and the glazed rim a slit runs all around the
+/// opening: 80 cm (the opening's perimeter, Ramanujan's formula) × 0.635 cm ≈ 51 cm². Gaps between
+/// the thighs and the seat's front add to it, a close-fitting seat takes from it; neither is
+/// measured, so the total open area is a control (`seat`), its default the bumpers' slit. Its
+/// length along the flow is the overlap of seat ring and rim: the ring is 3 in wide at the sides
+/// (outer width about 14 in, inner 8 in), the rim under it narrower; 5 cm, not measured.
+const SEAT_GAP: f64 = 0.635;
+const SEAT_NECK: f64 = 5.0;
+/// Where the cleft opens into the bowl, as a fraction of the opening's length from its rear. The
+/// seated weight rests on the ischial tuberosities, on the seat ring's sides about mid-length;
+/// the anus lies on the midline just behind the line between them (the anal triangle), and the
+/// genitals (the urogenital triangle) in front: so a little behind the middle. Not measured.
+const ANUS_AT: f64 = 0.45;
+/// Sections of the bowl's tube: 3 cm each, ten per wavelength up to about 1.2 kHz.
+const BOWL_SECTIONS: usize = 10;
+/// The slit leaks' end correction is evaluated at this frequency (Hz); it varies by ±0.15 cm over
+/// 100–600 Hz.
+const LEAK_REF_HZ: f64 = 200.0;
+/// The toggle's time constant (s). Sitting down is not modelled: the cleft's outlet is handed
+/// from the room to the bowl over this time (the radiation load fading as the opening into the
+/// bowl grows, both ramped sample by sample, which alone keeps the switch from clicking; tests
+/// check it). The intermediate states are a crossfade of the two boundaries, not a body part way
+/// down. A fraction of a second, the order of the body's last settling onto the seat; not
+/// measured.
+const TOILET_SETTLE: f64 = 0.25;
+/// Euler–Mascheroni constant.
+const EULER_GAMMA: f64 = 0.577_215_664_901_532_9;
+
+/// One vertical slice across the bowl's air at distance `x` (cm) from the rear of the seat
+/// opening: (area cm², width of the body's surface over it cm, perimeter cm). The bowl between
+/// the opening (at the top) and the water (at the bottom) is a stack of ellipses whose axes
+/// change linearly with depth, rear ends aligned; the slice is integrated over the depth.
+fn bowl_slice(x: f64) -> (f64, f64, f64) {
+    const M: usize = 64;
+    let (a1, b1) = (SEAT_OPEN_LEN / 2.0, SEAT_OPEN_W / 2.0);
+    let (a2, b2) = (WATER_LEN / 2.0, WATER_W / 2.0);
+    let half = |y: f64| {
+        let t = y / BOWL_DEPTH;
+        let a = a1 + (a2 - a1) * t;
+        let b = b1 + (b2 - b1) * t;
+        let u = (x - a) / a;
+        if u.abs() >= 1.0 { 0.0 } else { b * sqrt(1.0 - u * u) }
+    };
+    let dy = BOWL_DEPTH / M as f64;
+    let (mut area, mut side, mut prev) = (0.0, 0.0, half(0.0));
+    for j in 0..M {
+        let h1 = half((j as f64 + 1.0) * dy);
+        area += 2.0 * half((j as f64 + 0.5) * dy) * dy;
+        if prev > 0.0 || h1 > 0.0 {
+            side += 2.0 * sqrt(dy * dy + (h1 - prev) * (h1 - prev));
+        }
+        prev = h1;
+    }
+    let (top, bottom) = (2.0 * half(0.0), 2.0 * half(BOWL_DEPTH));
+    (area, top, side + top + bottom)
+}
+
+/// Perimeter of the seat opening (cm): an ellipse, by Ramanujan's approximation.
+fn seat_perimeter() -> f64 {
+    let (a, b) = (SEAT_OPEN_LEN / 2.0, SEAT_OPEN_W / 2.0);
+    PI * (3.0 * (a + b) - sqrt((3.0 * a + b) * (a + 3.0 * b)))
+}
+
+/// Each bowl slice's share of the seat opening's perimeter: the arc of the ellipse whose x falls
+/// in the slice (both sides), summed numerically.
+fn perimeter_shares() -> [f64; BOWL_SECTIONS] {
+    const M: usize = 4096;
+    let (a, b) = (SEAT_OPEN_LEN / 2.0, SEAT_OPEN_W / 2.0);
+    let mut share = [0.0; BOWL_SECTIONS];
+    let mut total = 0.0;
+    let point = |t: f64| (a - a * crate::math::cos(t), b * crate::math::sin(t));
+    let mut prev = point(0.0);
+    for j in 1..=M {
+        let next = point(PI * j as f64 / M as f64);
+        let ds = sqrt((next.0 - prev.0) * (next.0 - prev.0) + (next.1 - prev.1) * (next.1 - prev.1));
+        let x = 0.5 * (next.0 + prev.0);
+        let i = js_min((BOWL_SECTIONS - 1) as f64, (x / SEAT_OPEN_LEN * BOWL_SECTIONS as f64).floor()) as usize;
+        share[i] += ds;
+        total += ds;
+        prev = next;
+    }
+    for s in &mut share {
+        *s /= total;
+    }
+    share
+}
+
+/// End correction (cm) of a slit of height `h` (cm) opening into a half space, at LEAK_REF_HZ:
+/// a strip of uniform velocity in a baffle, whose mean pressure (two-dimensional Green's function,
+/// small kh) gives the reactance of an added length δ = (h/π)·(3/2 − γ − ln(kh/2)).
+fn slit_end_correction(h: f64) -> f64 {
+    let k = 2.0 * PI * LEAK_REF_HZ / C_SOUND;
+    h / PI * (1.5 - EULER_GAMMA - ln(k * h / 2.0))
+}
+
+/// Viscous resistance (CGS acoustic ohms) of a slit of height `h`, area `a` and length `len` (cm)
+/// at LEAK_REF_HZ, from oscillating flow between two plates (the slit's Womersley solution): the
+/// mean velocity is the inviscid one times 1 − tanh(s)/s, s = (1 + j)·h/2δ with δ = √(2ν/ω) the
+/// viscous boundary layer, so Z = jωρ·len/a / (1 − tanh(s)/s) and the resistance is its real
+/// part. A wide slit (h ≫ δ) gives the boundary layer's loss on its two faces, ρω·len·δ/(a·h); a
+/// narrow one Poiseuille's, 12μ·len/(a·h²). The default leak's 6.4 mm against δ = 0.16 mm at
+/// 200 Hz is the first; the smallest leak's 0.6 mm is between.
+fn slit_resistance(h: f64, a: f64, len: f64) -> f64 {
+    let w = 2.0 * PI * LEAK_REF_HZ;
+    let delta = sqrt(2.0 * MU / (RHO * w));
+    let x = h / (2.0 * delta);
+    // tanh(x + jx) = (sinh 2x + j sin 2x)/(cosh 2x + cos 2x), divided by s = x(1 + j)
+    let den = crate::math::cosh(2.0 * x) + crate::math::cos(2.0 * x);
+    let (tr, ti) = (crate::math::sinh(2.0 * x) / den, crate::math::sin(2.0 * x) / den);
+    let (qr, qi) = ((tr + ti) / (2.0 * x), (ti - tr) / (2.0 * x));
+    let (dr, di) = (1.0 - qr, -qi);
+    // with D = 1 − tanh(s)/s, j/D = (Di + j·Dr)/|D|²: the resistance takes Di
+    w * RHO * len / a * di / (dr * dr + di * di)
+}
+
+/// Flanagan's piston-in-a-baffle radiation inertance as an added length (cm) for an opening of
+/// area `a` (the network's radiation load): 8/(3π)·√(a/π).
+fn piston_end_correction(a: f64) -> f64 {
+    8.0 / (3.0 * PI) * sqrt(a / PI)
+}
+
+/// The bowl's air (cm³): its slices' areas over its length, as the network's tube holds it.
+pub fn bowl_volume() -> f64 {
+    let dx = SEAT_OPEN_LEN / BOWL_SECTIONS as f64;
+    (0..BOWL_SECTIONS).map(|i| bowl_slice((i as f64 + 0.5) * dx).0 * dx).sum()
+}
+
+/// The bowl's Helmholtz frequency (Hz) predicted from the geometry alone, for an open area `leak`
+/// (cm²) around the seat: the bowl's air the compliance V/ρc², the leaks' air the mass
+/// ρ·(ℓ + 2δ)/A (a slit of height A/perimeter, its two end corrections), f = c/2π·√(A/(V·(ℓ + 2δ))).
+/// A lumped estimate: it leaves out the body's soft top and the cleft on the other side.
+pub fn toilet_helmholtz(leak: f64) -> f64 {
+    let l_eff = SEAT_NECK + 2.0 * slit_end_correction(leak / seat_perimeter());
+    C_SOUND / (2.0 * PI) * sqrt(leak / (bowl_volume() * l_eff))
+}
+
 /// The radius of a sphere of volume `v`.
 fn sphere_radius(v: f64) -> f64 {
     cbrt((3.0 * v) / (4.0 * PI))
@@ -363,6 +547,18 @@ pub struct Flatus {
     /// mucus cohesive strength (dyn/cm²) and whether a liquid bridge joins the faces
     adhesion: f64,
     bonded: bool,
+    /// the toilet: the cleft's radiator, the cleft's opening into the bowl, the seat leak's slit
+    /// from each slice of the bowl and their shared radiating outlet, the seat opening's perimeter
+    cleft_rad: usize,
+    bowl_port: usize,
+    leak_ports: [usize; BOWL_SECTIONS],
+    outlet: Tube,
+    outlet_area: Vec<f64>,
+    seat_perimeter: f64,
+    /// each slice's share of the seat opening's perimeter (its share of the leak)
+    leak_share: [f64; BOWL_SECTIONS],
+    /// how far the cleft's outlet is handed to the bowl (0: the room, 1: the bowl)
+    toilet: f64,
 }
 
 fn create(fs: f64) -> Box<dyn CreatureSim> {
@@ -387,7 +583,41 @@ fn create(fs: f64) -> Box<dyn CreatureSim> {
     let valve = net.add_port(junction.last_node(), margin.first_node(), PortSpec::new(0.0, VALVE_LEN).kinetic(0.37, 1.0).slit(SLIT_LEN));
     // the cheeks' strip: a slit across the cleft whose gap the cheeks' LipReed sets every sample
     let cheek_port = net.add_port(margin.last_node(), cleft.first_node(), PortSpec::new(0.3, CHEEK_LEN).kinetic(0.37, 1.0).slit(1.0));
-    net.add_radiation(cleft.last_node());
+    let cleft_rad = net.add_radiation(cleft.last_node());
+    // the toilet bowl: a tube along the bowl's length (rear to front) of its slices' areas, its
+    // top the body's soft surface over the opening (the wall's area is the body's; the viscous
+    // loss uses the slices' whole perimeters)
+    let dx = SEAT_OPEN_LEN / BOWL_SECTIONS as f64;
+    let slices: Vec<(f64, f64, f64)> = (0..BOWL_SECTIONS).map(|i| bowl_slice((i as f64 + 0.5) * dx)).collect();
+    let circle: f64 = slices.iter().map(|s| 2.0 * sqrt(PI * s.0)).sum();
+    let body: f64 = slices.iter().map(|s| s.1).sum();
+    let perimeter: f64 = slices.iter().map(|s| s.2).sum();
+    let bowl_area = |u: f64| slices[js_min((BOWL_SECTIONS - 1) as f64, (u * BOWL_SECTIONS as f64).floor()) as usize].0;
+    let bowl = tube(
+        &mut net,
+        "bowl",
+        fs,
+        SEAT_OPEN_LEN,
+        TubeArea::Profile(&bowl_area),
+        TubeOpts { wall: Some(WALL_SOFT), min: Some(BOWL_SECTIONS as f64), max: Some(BOWL_SECTIONS as f64), perimeter_factor: Some(body / circle), viscous_factor: Some(perimeter / body), ..Default::default() },
+    );
+    // the cleft's mouth opens into the bowl through the opening's own near-field mass (set in
+    // control: the same piston end correction as the room's radiation load), closed while off.
+    // No jet loss: the room's radiation load has none either.
+    let anus = js_min((BOWL_SECTIONS - 1) as f64, (ANUS_AT * BOWL_SECTIONS as f64).floor()) as usize;
+    let bowl_port = net.add_port(cleft.last_node(), bowl.node(anus), PortSpec::new(0.0, 1.0).no_half_sections().kinetic(0.0, 0.0));
+    // the leaks: the slit runs around the seat opening, so each slice of the bowl leaks through
+    // its share of the perimeter (the ellipse's arcs over the slice). Every share opens into the
+    // room as one aperture: the seat (30 cm) is small against the wavelength at the bowl's
+    // resonance (1.8 m at 190 Hz), so the leaks radiate in phase and load each other (mutual
+    // radiation impedance), as one baffled opening of their total area; one short section
+    // outside the slits carries that load
+    let outlet = tube(&mut net, "seatLeak", fs, js_max(0.5, super::build::dx_min(fs)), TubeArea::Uniform(50.0), TubeOpts { min: Some(1.0), max: Some(1.0), ..Default::default() });
+    let mut leak_ports = [0usize; BOWL_SECTIONS];
+    for (i, port) in leak_ports.iter_mut().enumerate() {
+        *port = net.add_port(bowl.node(i), outlet.first_node(), PortSpec::new(5.0, SEAT_NECK).no_half_sections());
+    }
+    net.add_radiation(outlet.first_node());
     net.finalize();
     // the pocket's wall motion enters as flow (sample by sample, below), so its geometry, which
     // follows at control rate, must not inject −dV/dt a second time; the other tubes change only
@@ -399,7 +629,7 @@ fn create(fs: f64) -> Box<dyn CreatureSim> {
     let upper_jet = NoiseSpec::new(upper_port, valve, rectum.branch(rectum.n - 2), JET_NOISE.0).band(JET_NOISE.1, JET_NOISE.2);
     let mut s = Flatus {
         net,
-        tubes: vec![("rectum", rectum), ("junction", junction), ("margin", margin), ("cleft", cleft)],
+        tubes: vec![("rectum", rectum), ("junction", junction), ("margin", margin), ("cleft", cleft), ("bowl", bowl)],
         rectum,
         junction,
         cleft,
@@ -438,6 +668,14 @@ fn create(fs: f64) -> Box<dyn CreatureSim> {
         size: 1.0,
         adhesion: 0.0,
         bonded: false,
+        cleft_rad,
+        bowl_port,
+        leak_ports,
+        outlet,
+        outlet_area: vec![50.0],
+        seat_perimeter: seat_perimeter(),
+        leak_share: perimeter_shares(),
+        toilet: 0.0,
     };
     s.lip.zeta = LIP_ZETA;
     s.upper.zeta = LIP_ZETA;
@@ -620,6 +858,33 @@ impl CreatureSim for Flatus {
             len = 3;
         }
         self.net.set_noise_sources(&self.noise[..len]);
+        // the toilet: the cleft's outlet handed from the room to the bowl (exactly the room's while
+        // off, so the creature is unchanged); the seat leak, shared by the slices
+        let on = js_max(0.0, js_min(1.0, p[TOILET]));
+        let on = if on < 1e-6 { 0.0 } else if on > 1.0 - 1e-6 { 1.0 } else { on };
+        self.toilet = on;
+        let mouth = self.cleft_areas[n - 1];
+        self.net.set_port_geometry(self.bowl_port, piston_end_correction(mouth), 0.0);
+        self.net.set_port_target(self.bowl_port, mouth * on);
+        self.net.set_radiation_target(self.cleft_rad, 1.0 - on);
+        let leak = js_max(1.0, p[SEAT]);
+        let gap = leak / self.seat_perimeter;
+        // the slit's inertance: its length and its two end corrections; the outlet's radiation
+        // load (a round piston of the total area) already adds its own, which the length gives back
+        let len = js_max(0.1, SEAT_NECK + 2.0 * slit_end_correction(gap) - piston_end_correction(leak));
+        // its viscous loss: the slit's own (slit_resistance, over its length), given as the port's
+        // extra resistance less the round-duct term the network adds itself (at its reference
+        // frequency)
+        let net_bl = sqrt(RHO * MU * self.net.viscous_omega / 2.0) * self.net.viscous_scale;
+        self.outlet_area[0] = leak;
+        self.net.set_tube_targets(self.outlet, &self.outlet_area, None, None);
+        for i in 0..BOWL_SECTIONS {
+            let a = leak * self.leak_share[i];
+            let r = slit_resistance(gap, a, SEAT_NECK) - net_bl * 2.0 * sqrt(PI) * len * sqrt(a) / (a * a);
+            self.net.set_port_geometry(self.leak_ports[i], len, 0.0);
+            self.net.set_port_resistance(self.leak_ports[i], r);
+            self.net.set_port_target(self.leak_ports[i], a);
+        }
     }
     #[inline]
     fn sample(&mut self) -> f64 {
@@ -700,6 +965,7 @@ impl CreatureSim for Flatus {
         out.push(("gas", self.volume));
         out.push(("flow", self.u_mean));
         out.push(("expelled", self.expelled));
+        out.push(("toilet", self.toilet));
     }
     fn trigger(&mut self, _event: usize, _amount: f64) {
         self.fill_pending = true;
@@ -798,6 +1064,13 @@ pub fn def() -> CreatureDef {
             // the cohesive strength of the mucus between the canal's faces: 0 (dry) to 3 kPa,
             // intestinal mucus (Mortazavi & Smart 1994, via Bhattacharya & Siegmund 2014)
             ParamDef::new("mucus", "Mucus adhesion", 0.0, 3.0, 0.0).unit("kPa").smooth(0.05),
+            // seated on a toilet (1) or not (0, the default: the creature as before); the cleft's
+            // outlet is handed between the room and the bowl over TOILET_SETTLE
+            ParamDef::new("toilet", "On the toilet", 0.0, 1.0, 0.0).smooth(TOILET_SETTLE).toggle(),
+            // the open area between the bowl's air and the room when seated: by default the slit
+            // the seat's 1/4 in bumpers leave over the rim, 80 cm × 0.635 cm; a close-fitting seat
+            // leaves less, gaps between the thighs add more (not measured)
+            ParamDef::new("seat", "Seat leak", 5.0, 200.0, js_round(seat_perimeter() * SEAT_GAP)).unit("cm²").log().smooth(0.05),
         ],
         // Every call sets its controls first, lets them settle (the gas control smooths over 10
         // ms), starts a new event with "!fill" at 0.1 s, then pushes, and holds its controls for

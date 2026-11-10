@@ -309,3 +309,143 @@ fn rectal_distension_opens_the_internal_sphincter_zone() {
     let early = full(0.02);
     assert!(source(&early, "ias") < 1.0 && source(&low, "ias") > 15.0, "internal sphincter: {} at 150 mL, {} at 20 mL (cmH₂O)", source(&early, "ias"), source(&low, "ias"));
 }
+
+// ---------------------------------------------------------------- the toilet
+
+/// The default event (push 30, external sphincter 20, 100 mL) rendered from a fresh voice with
+/// the given controls, gate open for `sec`.
+fn event(kv: &[(&str, f64)], sec: f64) -> Vec<f32> {
+    hold(kv, sec).0
+}
+
+/// Power spectrum (Hann, 8192-point frames, half overlap) over the span within 30 dB of the
+/// loudest 10 ms, on (bin width, powers).
+fn spectrum(x: &[f32]) -> (f64, Vec<f64>) {
+    use chimera::analysis::fft::{Fft, hann};
+    let w: Vec<f64> = x.chunks(480).map(rms).collect();
+    let top = w.iter().cloned().fold(0.0, f64::max);
+    let on: Vec<usize> = (0..w.len()).filter(|&i| w[i] > top * 0.0316).collect();
+    let span = &x[on[0] * 480..((on[on.len() - 1] + 1) * 480).min(x.len())];
+    let m = 8192;
+    let mut padded = span.to_vec();
+    padded.resize(padded.len().max(m), 0.0);
+    let (fft, win) = (Fft::new(m), hann(m));
+    let mut pw = vec![0.0; m / 2];
+    let mut j = 0;
+    while j + m <= padded.len() {
+        let mut re: Vec<f64> = (0..m).map(|k| padded[j + k] as f64 * win[k]).collect();
+        let mut im = vec![0.0; m];
+        fft.transform(&mut re, &mut im);
+        for k in 0..m / 2 {
+            pw[k] += re[k] * re[k] + im[k] * im[k];
+        }
+        j += m / 2;
+    }
+    (FS / m as f64, pw)
+}
+
+/// Mean power over a sixth of an octave around `f`.
+fn band(spec: &(f64, Vec<f64>), f: f64) -> f64 {
+    let (df, p) = spec;
+    let (a, b) = ((f * 2f64.powf(-1.0 / 12.0) / df) as usize, (f * 2f64.powf(1.0 / 12.0) / df).ceil() as usize);
+    p[a..=b].iter().sum::<f64>() / (b + 1 - a) as f64
+}
+
+/// Where the toilet raises the sound most against the same event off it, 80–700 Hz, and by how
+/// much (dB).
+fn bowl_gain_peak(kv: &[(&str, f64)]) -> (f64, f64) {
+    let mut on_kv = kv.to_vec();
+    on_kv.push(("toilet", 1.0));
+    let off = spectrum(&event(kv, 1.5));
+    let on = spectrum(&event(&on_kv, 1.5));
+    let mut best = (0.0, f64::NEG_INFINITY);
+    let mut f = 80.0;
+    while f < 700.0 {
+        let g = 10.0 * (band(&on, f) / band(&off, f)).log10();
+        if g > best.1 {
+            best = (f, g);
+        }
+        f *= 2f64.powf(1.0 / 48.0);
+    }
+    best
+}
+
+#[test]
+fn the_toilet_bowl_rings_at_its_predicted_helmholtz_frequency() {
+    // the bowl (its air the spring, the seat's leaks the mass) raises the sound near the
+    // frequency the geometry predicts, and a looser seat (more leak) raises that frequency
+    use chimera::creatures::flatus::toilet_helmholtz;
+    for seat in [51.0, 120.0] {
+        let predicted = toilet_helmholtz(seat);
+        let (f, gain) = bowl_gain_peak(&[("seat", seat)]);
+        println!("seat leak {seat} cm²: predicted {predicted:.0} Hz, the render's largest gain {gain:.1} dB at {f:.0} Hz");
+        assert!((f / predicted - 1.0).abs() < 0.15, "seat {seat}: peak at {f:.0} Hz, predicted {predicted:.0} Hz");
+        assert!(gain > 10.0, "seat {seat}: the bowl adds only {gain:.1} dB");
+    }
+}
+
+#[test]
+fn off_the_toilet_the_bowl_is_not_there() {
+    // with the toilet off, the seat's leak (which only the bowl uses) changes nothing, bit for bit:
+    // the bowl is cut off and the cleft radiates into the room as before
+    let a = event(&[("seat", 5.0)], 0.6);
+    let b = event(&[("seat", 200.0)], 0.6);
+    assert!(a.iter().zip(&b).all(|(x, y)| x.to_bits() == y.to_bits()), "the seat leak changed the sound off the toilet");
+    // and on it, it does
+    let c = event(&[("seat", 5.0), ("toilet", 1.0)], 0.6);
+    let d = event(&[("seat", 200.0), ("toilet", 1.0)], 0.6);
+    assert!(c.iter().zip(&d).any(|(x, y)| x.to_bits() != y.to_bits()));
+}
+
+/// RMS above 5 kHz (a two-pole high-pass, twice) in 5 ms windows.
+fn hf_windows(x: &[f32]) -> Vec<f64> {
+    let c = (-2.0 * std::f64::consts::PI * 5000.0 / FS).exp();
+    let mut y = x.iter().map(|&v| v as f64).collect::<Vec<_>>();
+    for _ in 0..4 {
+        let (mut px, mut py) = (0.0, 0.0);
+        for v in y.iter_mut() {
+            let o = c * (py + *v - px);
+            px = *v;
+            py = o;
+            *v = o;
+        }
+    }
+    y.chunks(240).map(|c| (c.iter().map(|v| v * v).sum::<f64>() / c.len() as f64).sqrt()).collect()
+}
+
+#[test]
+fn sitting_down_or_standing_up_mid_sound_does_not_click() {
+    // a long relaxed tone (just past threshold, cheeks spread), the toilet switched on at 0.5 s
+    // and off at 1.1 s: the cleft's outlet is handed between the room and the bowl over the
+    // toggle's time constant, so no window after a switch has more high-frequency energy (where a
+    // click would show) than the sound had anyway
+    let kv = params(&[("eas", 5.0), ("push", 4.0), ("ias", 0.0), ("spread", 1.0)]);
+    let mut v = CreatureVoice::new(def(), FS, &kv);
+    v.set_gate(1.0);
+    let toilet = def().param_index("toilet").unwrap();
+    let mut out = vec![0.0f32; (1.6 * FS) as usize];
+    let (on_at, off_at) = ((0.5 * FS) as usize, (1.1 * FS) as usize);
+    let mut i = 0;
+    while i < out.len() {
+        let end = (i + 128).min(out.len());
+        let end = if i < on_at && end > on_at { on_at } else if i < off_at && end > off_at { off_at } else { end };
+        v.render(&mut out[i..end]);
+        i = end;
+        if i == on_at {
+            v.set_params(&[(toilet, 1.0)]);
+        }
+        if i == off_at {
+            v.set_params(&[(toilet, 0.0)]);
+        }
+    }
+    assert!(rms(&out[(0.4 * FS) as usize..on_at]) > 1e-3 && rms(&out[(1.2 * FS) as usize..(1.4 * FS) as usize]) > 1e-3, "the tone should last through both switches");
+    let hf = hf_windows(&out);
+    let w = |t: f64| (t * FS / 240.0) as usize;
+    let before = hf[w(0.3)..w(0.5)].iter().cloned().fold(0.0, f64::max);
+    let seated = hf[w(0.8)..w(1.1)].iter().cloned().fold(0.0, f64::max);
+    let after_on = hf[w(0.5)..w(0.7)].iter().cloned().fold(0.0, f64::max);
+    let after_off = hf[w(1.1)..w(1.3)].iter().cloned().fold(0.0, f64::max);
+    println!("high-frequency rms: before {before:.2e}, after sitting {after_on:.2e}, seated {seated:.2e}, after standing {after_off:.2e}");
+    assert!(after_on <= before * 1.2, "a click sitting down: {after_on:.2e} against {before:.2e}");
+    assert!(after_off <= before.max(seated) * 1.2, "a click standing up: {after_off:.2e} against {before:.2e}");
+}

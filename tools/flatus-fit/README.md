@@ -24,6 +24,8 @@ python3 -I tools/flatus-fit/compare.py $D/fit.json $D/clips $D/compare.png $D/tm
 - `features.py`: event segmentation, the features, the distance and the feature scales.
 - `sim.py`: drives `examples/flatus_render` (one process; `FLATUS_RENDER` picks another
   binary, e.g. a build of an earlier commit); a control may be given a course over time.
+  `FLATUS_EXTRA="toilet=1"` holds controls fixed for every render (library and fit alike): the
+  creature seated on the toilet.
 - `library.py`: renders a grid of the controls (push held until the gas is gone). An override of
   `tone` takes the grid of the model before the two sphincters (commit c258ac2).
 - `fit.py`: per event, the nearest library renders, then Nelder–Mead over the controls and the

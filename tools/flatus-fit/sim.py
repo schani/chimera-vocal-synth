@@ -17,14 +17,22 @@ RANGES = {
     "spread": (0.0, 1.0),
     "size": (0.6, 1.25),
     "mucus": (0.0, 3.0),
+    "toilet": (0.0, 1.0),
+    "seat": (5.0, 200.0),
 }
+
+
+def env_extra():
+    """Controls held fixed for every render, from FLATUS_EXTRA (e.g. "toilet=1 seat=51": the
+    creature seated on the toilet), so the library and the fit see the same condition."""
+    return {k: float(v) for k, v in (a.split("=", 1) for a in os.environ.get("FLATUS_EXTRA", "").split())}
 
 
 class Renderer:
     def __init__(self, tmpdir, extra=None):
         os.makedirs(tmpdir, exist_ok=True)
         self.tmp = os.path.join(tmpdir, f"r{os.getpid()}.f32")
-        self.extra = extra or {}
+        self.extra = {**env_extra(), **(extra or {})}
         self.p = subprocess.Popen([BIN], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 
     def render(self, params, pushes=None, secs=8.0, courses=None):

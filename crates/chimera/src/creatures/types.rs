@@ -51,12 +51,15 @@ pub struct ParamDef {
     /// decimals for display
     #[serde(skip_serializing_if = "Option::is_none")]
     pub digits: Option<u32>,
+    /// an on/off control (0 or 1; the UI shows a switch, the smoothing still ramps it)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle: Option<bool>,
 }
 
 impl ParamDef {
     /// A parameter with only the required fields; the builders below add the optional ones.
     pub const fn new(key: &'static str, label: &'static str, min: f64, max: f64, default: f64) -> Self {
-        ParamDef { key, label, min, max, default, unit: None, log: None, smooth: None, role: None, digits: None }
+        ParamDef { key, label, min, max, default, unit: None, log: None, smooth: None, role: None, digits: None, toggle: None }
     }
     pub const fn unit(mut self, u: &'static str) -> Self {
         self.unit = Some(u);
@@ -76,6 +79,10 @@ impl ParamDef {
     }
     pub const fn digits(mut self, d: u32) -> Self {
         self.digits = Some(d);
+        self
+    }
+    pub const fn toggle(mut self) -> Self {
+        self.toggle = Some(true);
         self
     }
 }

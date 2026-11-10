@@ -286,6 +286,8 @@ export interface ParamDef {
   role?: "pitch";
   /** decimals for display */
   digits?: number;
+  /** an on/off control (0 or 1): the UI shows a switch; the engine's smoothing still ramps it */
+  toggle?: boolean;
 }
 
 export interface CallKey {
