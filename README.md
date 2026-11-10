@@ -16,7 +16,8 @@ for tests and the `chimera` CLI.
   each word goes to its language's front end. Other languages can come in as IPA syllables ([docs/language-front-ends.md](docs/language-front-ends.md)).
 - **Beatbox**: pads and a step sequencer, every drum an articulatory gesture.
 - **Bestiary**: songbird (two-voice syrinx), seal, alligator, elephant, and flatulence (the anal
-  sphincter as a lip reed driven by the rectal gas; [docs/flatulence.md](docs/flatulence.md)).
+  canal's two closures, internal and external sphincter, as lip reeds driven by the rectal gas;
+  [docs/flatulence.md](docs/flatulence.md)).
 - **Duet** (`?show=<id>`): two 3D heads replay a pre-rendered song.
 
 Male, female and child bodies blend continuously. Everything on screen animates from live
